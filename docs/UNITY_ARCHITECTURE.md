@@ -1,182 +1,264 @@
 # SandPlanet Unity Architecture
 
-> 상태: **기반 아키텍처 가안**. 현재 확정된 게임 규칙을 Unity 3D에서 버리지 않고 확장하기 위한 최소 구조다.
+> 상태: **기반 아키텍처 가안**. 확정된 게임 규칙을 Unity 3D에서 버리지 않고 확장하기 위한 최소 구조다.
 
 ## 현재 기술 기준
 - Unity: **6000.4.1f1**
-- 렌더 파이프라인: **Universal Render Pipeline (URP)**
-- 게임의 핵심 표현: **3D 디오라마형 허브 + 2D 장소/인카운터 UI**
-- 캐릭터를 직접 WASD로 이동시키는 3D 어드벤처 구조는 현재 목표가 아니다.
+- 렌더 파이프라인: **URP**
+- 표현: **3D 디오라마형 허브 + 2D 장소/Encounter UI**
+- WASD 직접 이동형 3D 어드벤처가 아니다.
 
 ## 목표
-- 짧은 프로토타입을 만들더라도 이후 21일 게임으로 확장 가능해야 한다.
-- 콘텐츠 추가가 핵심 코드 수정으로 이어지지 않도록 데이터와 런타임 로직을 분리한다.
-- 3D 허브의 아트가 교체되어도 시간, 의지, 관계, 설득, 수송선 시스템은 유지되게 한다.
+- 0.x 프로토타입을 버리지 않고 21일 게임으로 확장한다.
+- 콘텐츠 추가가 핵심 코드 수정으로 이어지지 않게 한다.
+- 현재 Game State를 평가해 `지금 이 장소에서 가능한 Encounter Pool`을 구성한다.
+- Excel 기반 Encounter/Choice/Condition/Action 데이터로 이후 이전 가능한 구조를 우선한다.
 
 ## 화면/플레이 계층
+### Week 1~2: 3D 행성 허브
+핵심 장소:
+- ship
+- graveyard
+- settlement
+- oasis
 
-### 1. 1~2주차: 3D 행성 허브
-메인 네비게이션 화면.
+랜드마크는 Location ID만 가진 얇은 컴포넌트로 유지한다.
 
-현재 핵심 장소:
-- 수송선
-- 묘지
-- 거주지
-- 오아시스
+### 장소 화면
+`3D 행성 허브 → 장소 → 현재 유효한 Encounter 카드`
 
-허브 자체에서도 즉시 실행 가능한 **행성(Global) 인카운터**가 존재할 수 있다.
-예: 멀리서 수송선의 연기를 발견, 긴급 무전, NPC 이동 사건.
+장소가 Encounter를 직접 고정 소유하기보다 Encounter Resolver가 현재 상태를 평가해 목록을 만든다.
 
-3D 랜드마크를 클릭하면 해당 장소 화면으로 들어간다.
-
-### 2. 장소 화면
-3D 공간을 직접 걸어 다니는 대신, 장소의 2D 이미지와 현재 실행 가능한 인카운터/캐릭터 카드를 보여준다.
-
-흐름:
-`3D 행성 허브 → 장소 클릭 → 장소 화면 → 인카운터 선택`
-
-### 3. 2D 인카운터 화면
-실제 내러티브 플레이의 중심.
-
-표현 후보:
-- 장소 배경 이미지
-- 캐릭터 포트레이트
+### 2D Encounter 화면
+대표 표현:
+- 장소/상황 비주얼
+- Primary NPC 포트레이트
+- Narrative Type 비주얼 마커
 - 상황 텍스트
-- 선택지
+- Choice 목록
 - 시간/의지 비용
 - Soft/Hard Requirement
-- 선택 결과 피드백
+- 결과 피드백
 
-선택 결과는 시간, 의지, 호감도, 정보, 설득 플래그, 수송선 상태, 경향성 등에 영향을 준다.
+### 수송선 정비 화면
+플레이어에게 트리가 아니라 실제 수송선 부위/도면을 수리하는 감각으로 표현한다.
 
-### 4. 수송선 수리 화면
-시스템적으로는 선행 조건과 단계가 있는 트리 구조를 가질 수 있지만, 플레이어에게는 **스킬 트리보다 수송선 단면도/정비 도면을 수리하는 느낌**으로 표현한다.
+### Week 3: 수송선 내부 허브
+같은 `허브 → 구역 → Encounter` 문법을 재사용한다.
 
-시설은 실제 수송선 부위의 위치에 대응시키고, 파손 → 응급 복구 → 정상 작동 → 보강 같은 상태 변화를 시각적으로 보여주는 방향을 우선한다.
-
-### 5. 3주차: 3D 수송선 내부 허브
-모래폭풍 시작 후 플레이 공간이 행성 전체에서 수송선 내부로 축소된다.
-
-1~2주차와 같은 `허브 → 구역 → 인카운터` 문법을 유지하되 의미가 바뀐다.
-- 1~2주차: **어디를 찾아갈까?**
-- 3주차: **어디부터 살릴까?**
-
-1~2주차에 수리한 수송선 상태가 3주차 내부 공간과 파손/생존 조건에 반영되도록 한다.
-
-## 권장 코드/데이터 계층
-
+## 데이터 / 상태 계층
 ### 1. Static Definitions
 플레이 중 변하지 않는 콘텐츠 정의.
 
-후보 데이터:
+최종 후보:
 - `CharacterDefinition`
+- `LocationDefinition`
 - `EncounterDefinition`
+- `ChoiceDefinition`
+- `EventDefinition`
 - `SkillDefinition`
 - `ShipFacilityDefinition`
-- `LocationDefinition`
 
-Unity에서는 ScriptableObject를 우선 후보로 사용하되, 대량 시나리오 데이터의 편집 방식은 프로토타입 후 재평가한다.
+`QuestDefinition`은 현재 필수 구조로 두지 않는다. Main/Character/Activity는 Encounter의 분류/태그로 처리한다.
+
+Prototype 0.3에서는 C# 직렬화 데이터로 먼저 검증할 수 있으나, 특정 콘텐츠 전용 로직이 아니라 정의 데이터를 추가하는 방식이어야 한다.
 
 ### 2. Runtime State
-세이브에 들어가는 현재 상태.
+세이브에 들어갈 현재 상태 후보:
 
-후보 상태:
-- `GameState`: Day, 현재 시간, 주차/페이즈, 글로벌 플래그
-- `PlayerState`: 개인/대인/기술, 현재/최대 의지, SP, 획득 스킬
-- `CharacterState`: 호감도 0~5, 동료 여부, 정보/퀘스트/설득 플래그
-- `ShipState`: 시설별 단계와 파손 상태
-- `DailyTrendState`: 오늘의 개인/대인/기술 경향성 누적
+#### GameState
+- Day
+- CurrentHour
+- Week/Phase
+- Global Flags
+- Main Scenario State
 
-런타임 상태는 ScriptableObject 원본 자체를 수정하는 방식보다 별도의 직렬화 가능한 상태 객체로 유지한다.
+#### PlayerState
+- Personal Lv / XP
+- Interpersonal Lv / XP
+- Technical Lv / XP
+- Current / Max Willpower
+- SP / Perks (향후)
 
-### 3. Core Systems
-- `TimeSystem`: 행동 시간 소비, 하루 경계, 활동 가능 시간 판정
-- `WillpowerSystem`: 소비/회복/최대치, 낮잠/수면
-- `StatTrendSystem`: 행동 경향 기록, 하루 종료 시 능력치 +1
-- `RequirementSystem`: Soft / Hard Requirement 평가
-- `EncounterSystem`: 인카운터 조건, 선택지, 비용, 결과 실행
-- `RelationshipSystem`: 호감도/동료/인물 플래그
-- `ShipSystem`: 시설 상태, 수리, 작업 지시, 이후 파손 확장
-- `SkillSystem`: 획득 조건과 기존 규칙 수정 효과
+#### CharacterState
+- Affinity 0~5
+- Companion 여부
+- Character Flags
+- 설득/개인사 상태
 
-### 4. 3D Hub Interaction
-3D 허브 오브젝트는 게임 규칙을 직접 소유하지 않는다.
+#### ShipState
+- 시설별 0~3 상태
+- 파손/보강 상태
 
-랜드마크에는 위치 ID만 가진 얇은 컴포넌트를 두고 클릭 시 장소 화면을 요청한다.
+기존 `DailyTrendState`는 폐기한다.
+
+### 3. State / Flag registry
+Encounter/Choice/Event 조건과 Action에서 사용하는 상태는 가능한 한 ID로 관리한다.
+
 예:
-- `ship`
-- `graveyard`
-- `settlement`
-- `oasis`
+- `MEMORIAL_DONE`
+- `W1_INVESTIGATION_OPEN`
+- `WATER_RISK_KNOWN`
+- `W1_REPORT_DONE`
+- `W1_DISCLOSURE`
 
-최종적으로 모델, 지형, 카메라 연출이 교체되어도 Location ID와 게임 상태는 그대로 유지한다.
+Prototype에서는 enum/bool로 단순화할 수 있지만, 최종 데이터 구조가 특정 C# 분기문에 묶이지 않게 한다.
 
-## 인카운터 종류
+## Core Systems
+- `TimeSystem`: 시간 소비, Day 경계, Morning/Afternoon/Evening 시작 시간 판정.
+- `WillpowerSystem`: 소비/회복/최대치, 3시간 휴식, 수면 +2.
+- `GrowthSystem`: 개인/대인/기술 XP 및 6XP 레벨업.
+- `RequirementSystem`: Soft / Hard Requirement 평가, TEMP 의지 강행 공식.
+- `EncounterSystem`: 현재 상태에 맞는 Encounter 필터링, Choice 실행.
+- `EventSystem`: 조건 충족 시 자동/강제 Event 호출.
+- `ActionSystem`: XP/호감도/플래그/시설/세계 상태 등 결과 적용.
+- `RelationshipSystem`: 호감도/동료/인물 플래그.
+- `ShipSystem`: 시설 상태/수리.
+- `SkillSystem`: 향후 시간 범위/비용/기존 규칙 변형.
 
-### Global Encounter
-행성/허브 화면에서 바로 보이고 실행할 수 있는 사건.
+Prototype 0.3에서는 이들을 한 Controller 안의 작은 모듈성 메서드로 검증할 수 있다. 단, 콘텐츠 ID별 거대한 switch를 최종 해법으로 만들지 않는다.
 
-### Location Encounter
-특정 장소 화면에 들어가야 발견하고 실행할 수 있는 사건.
-
-두 종류 모두 동일한 인카운터 규칙/결과 시스템을 사용하는 것을 목표로 한다.
-
-## 인카운터 데이터의 기본 책임
-하나의 인카운터 정의는 최소한 다음을 표현할 수 있어야 한다.
+## Encounter Definition 책임
+최소 표현 항목:
 - ID
+- Variant Group
+- Narrative Type: Main / Character / Activity / World 등
+- Visual Priority
 - Scope: Global / Location
-- Location ID (필요할 경우)
-- 표시 제목/텍스트
-- 발생 기간/플래그 조건
-- 기본 시간 비용
-- 기본 의지 비용
-- 선택지 목록
-- 선택지별 Soft Requirement
-- 선택지별 Hard Requirement
-- 결과: 호감도, 정보 플래그, 설득 플래그, 시설 상태, 경향성 태그 등
+- Location ID
+- Primary NPC ID
+- Week / Open Day / Close Day
+- Allowed Time Slots
+- Repeat Rule
+- Show Conditions
+- Hide Conditions
+- Title / Body
+- Choice Definitions
 
-특정 인카운터 때문에 새로운 전용 C# 클래스를 만드는 것을 기본 해법으로 삼지 않는다.
+### Variant
+같은 기계적 효과라도 문맥이 달라지면 별도 Encounter로 둘 수 있다.
 
-## Requirement 원칙
+예:
+- `GRAVE_CLEAN_PRE_MEMORIAL`
+- `GRAVE_CLEAN_POST_MEMORIAL`
+
+둘 다 Personal XP +1일 수 있지만 Condition과 텍스트가 다르다.
+
+## Choice Definition 책임
+- ID
+- 표시 문구
+- Time Cost
+- Base Will Cost
+- Soft Stat / Required Lv
+- Hard Conditions
+- Result Text
+- Actions
+
 ### Soft Requirement
-- 개인/대인/기술처럼 의지력으로 일부 부족분을 보완할 수 있는 요구치.
-- 정확한 부족분→의지 비용 공식은 아직 TBD.
+개인/대인/기술처럼 의지로 부족분을 보완할 수 있는 요구.
+
+Prototype 0.3 TEMP 공식 후보:
+- 부족 Lv 1당 의지 1.
+- 현재 의지가 부족하면 선택 불가.
+
+최종 공식은 플레이 테스트 후 재검토한다.
 
 ### Hard Requirement
-- 특정 동료
-- 특정 정보 플래그
-- 특정 퀘스트 상태
-- 특정 수송선 시설 상태
-- 기타 세계 상태
+예:
+- 특정 Flag
+- Affinity
+- 특정 NPC/Companion
+- Ship Facility State
+- 다른 Encounter 결과
 
-Hard Requirement는 의지력으로 우회할 수 없다.
+의지로 우회하지 못한다.
 
-## Prototype 0.1
-현재 `Tools > SandPlanet > Generate Prototype 0.1` 메뉴로 자동 생성 가능한 그레이박스를 사용한다.
+## Action 책임
+Choice/Event 결과는 작은 Action들의 조합으로 표현하는 방향을 우선한다.
 
-검증 범위:
-- 3D 행성 허브
-- 수송선 / 묘지 / 거주지 / 오아시스 클릭
-- Global / Location 인카운터 구분
-- DAY 1/21 표시와 3일 샌드박스
-- 08:00~22:00 시간
-- 의지 5, 낮잠 2시간 +1, 수면 +2
-- 시작 개인/대인/기술 총 6 배분
-- 하루 경향성 성장
-- 벤자민 호감도 샘플
-- 퀘스트 기반 설득 샘플
-- 기술자 동료 → 수송선 방호 수리 연결
-- 시설 단계 0~3
+후보:
+- `ADD_XP`
+- `ADD_AFFINITY`
+- `SET_FLAG`
+- `SET_SCENARIO_STATE`
+- `SET_COMPANION`
+- `ADD_FACILITY_STATE`
+- `SET_FACILITY_STATE`
 
-Prototype 0.1의 콘텐츠/수치 일부는 TEMP이며 플레이 테스트 후 데이터 구조로 분리한다.
+일반 선택의 Time/Will 비용은 Choice의 가시 필드로 두고, 상태 변화는 Action으로 관리하는 방식이 기획 테이블 가독성에 유리하다.
+
+## Event Definition 책임
+Event는 플레이어가 지도에서 고르는 Encounter와 진입 방식만 다르다.
+
+최소 항목:
+- ID
+- Trigger 조건
+- Once/Repeat
+- Title / Body
+- Choice 또는 자동 Actions
+
+대표 0.3 Event:
+- DAY 1 기상.
+- DAY 3 조사 단계 개방.
+- DAY 7 종료 시 공개 범위 선택.
+
+## Dynamic Encounter Pool
+장소 진입 또는 Hub 상태 갱신 시 다음을 평가한다.
+
+1. Scope / Location 일치.
+2. Week / Day 범위.
+3. 현재 시각이 허용 Time Slot에 해당.
+4. Repeat Rule.
+5. Show Conditions 충족.
+6. Hide Conditions 미충족.
+7. 다른 Hard availability 조건 충족.
+
+그 결과만 카드로 표시한다.
+
+따라서 Main 진행에 따라 일반 생활/캐릭터 Encounter도 자연스럽게 추가·삭제·Variant 변경될 수 있다.
+
+## Growth rules for 0.3
+- 세 능력치 각각 `Lv + XP`.
+- 시작 Lv 합계 6.
+- 6XP마다 즉시 Lv +1.
+- Lv 상한 20.
+- 기존 Trend enum/누적/EndDay 성장 로직 제거.
+- HUD에서 `Lv / XP`를 상시 표시한다.
+
+## Time / Will rules for 0.3
+- 기본 활동 범위 08:00~22:00.
+- Time Slot:
+  - Morning 06:00~11:59
+  - Afternoon 12:00~16:59
+  - Evening 17:00~22:00
+- 판정은 Choice/Encounter 시작 시각 기준.
+- 휴식 3시간 → 의지 +1.
+- 수면 후 +2.
+- 향후 SkillSystem이 시작/종료 시간을 07→06, 23→24로 바꿀 수 있도록 시간 상수를 한 곳에 둔다.
+
+## Portrait architecture
+현재 PNG:
+- 샘
+- 지나
+- 페이
+- 벤자민
+- 보리치
+- 디야
+
+Prototype 0.3 Builder가 PNG TextureImporter를 Sprite로 맞춘 뒤 Controller의 Character ID ↔ Sprite 매핑에 연결하는 방식을 사용할 수 있다.
+
+Primary NPC가 없으면 포트레이트 영역은 장소/상황 비주얼로 남긴다.
+
+## Prototype version isolation
+- 0.1 / 0.2 코드는 회귀 확인용으로 유지한다.
+- 0.3은 별도 `SandPlanetPrototype03Controller` / `SandPlanetPrototype03Builder` / Scene으로 추가한다.
+- 기존 프로토타입 규칙을 최신 기획으로 억지로 수정하지 않는다.
 
 ## 아직 결정하지 않는 것
-- 최종 카메라 연출과 디오라마 아트 스타일
-- 장소 화면 최종 레이아웃
-- 대화 UI 최종 연출
-- 수송선 수리 도면 최종 UI
-- 3주차 내부 수송선 레이아웃
-- 세이브 포맷 최종안
-- Addressables 등 콘텐츠 로딩 전략
-
-이 항목들은 실제 프로토타입의 플레이 감각과 제작 파이프라인을 확인한 뒤 확정한다.
+- 최종 ScriptableObject/CSV/Excel Import 파이프라인.
+- 최종 세이브 포맷.
+- 완성 UI Toolkit 전환 여부.
+- 최종 포트레이트 연출/표정 시스템.
+- 전체 Week 1 Encounter 데이터.
+- 최종 Soft Requirement 공식.
+- Addressables.
