@@ -26,7 +26,6 @@ namespace SandPlanet.EditorTools
             EnsureFolder(MaterialFolder);
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            scene.name = "SandPlanet_Prototype_01";
 
             GameObject root = new GameObject("=== SAND PLANET PROTOTYPE 0.1 ===");
 
@@ -43,8 +42,9 @@ namespace SandPlanet.EditorTools
             controllerObject.transform.SetParent(root.transform);
             controllerObject.AddComponent<SandPlanetPrototypeController>();
 
-            if (!Directory.Exists(Path.GetDirectoryName(ScenePath)))
-                Directory.CreateDirectory(Path.GetDirectoryName(ScenePath));
+            string sceneFolder = Path.GetDirectoryName(ScenePath);
+            if (!string.IsNullOrEmpty(sceneFolder) && !Directory.Exists(sceneFolder))
+                Directory.CreateDirectory(sceneFolder);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddSceneToBuildSettings(ScenePath);
@@ -124,7 +124,7 @@ namespace SandPlanet.EditorTools
             renderer.sharedMaterial = GetOrCreateMaterial("M_" + id, color);
 
             GameObject labelObject = new GameObject("WorldLabel");
-            labelObject.transform.SetParent(location.transform, false);
+            labelObject.transform.SetParent(parent, false);
             labelObject.transform.position = position + Vector3.up * (scale.y * 0.65f + 1.1f);
             labelObject.transform.rotation = Quaternion.LookRotation(camera.transform.position - labelObject.transform.position, Vector3.up);
             labelObject.transform.localScale = Vector3.one;
