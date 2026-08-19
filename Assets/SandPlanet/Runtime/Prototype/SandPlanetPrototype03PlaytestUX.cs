@@ -89,8 +89,6 @@ namespace SandPlanet.Prototype
 
         private void Awake()
         {
-            GUI.depth = -1000;
-
             controller = GetComponent<SandPlanetPrototype03Controller>();
             if (controller == null)
                 controller = UnityEngine.Object.FindFirstObjectByType<SandPlanetPrototype03Controller>();
