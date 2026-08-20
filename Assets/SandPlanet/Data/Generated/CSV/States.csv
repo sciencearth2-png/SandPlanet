@@ -1,0 +1,32 @@
+StateID,DataType,DefaultValue,Scope,Description,WriterNote
+STA_W1_GRAVEYARD_VISITED,BOOL,FALSE,WORLD,묘지를 처음 확인함,기존 샘플 유지.
+STA_W1_MEMORIAL_COMPLETED,BOOL,FALSE,WORLD,추모 완료,묘지 텍스트/NPC 일정 변형.
+STA_W1_OASIS_RISK_KNOWN,BOOL,FALSE,INFO,오아시스 장기 위험을 확인함,EVT_W1_OASIS_RISK_FOUND가 설정.
+STA_W1_SHIP_REPAIR_PRIORITY_KNOWN,BOOL,FALSE,INFO,수송선 수리 우선순위 정보 확보,페이 Week1 Character Quest 결과.
+STA_W1_PUBLIC_REACTION_PREPARED,BOOL,FALSE,WORLD,공개 후 주민 반응 대비,향후 공개 루트 갈등 완화용.
+STA_W1_SETTLEMENT_PERSPECTIVE_KNOWN,BOOL,FALSE,INFO,정착 관점 정보 확보,디야 Week1 Side Quest 결과.
+STA_W1_DISCLOSURE_PUBLIC,BOOL,FALSE,ROUTE,모두에게 공개,Day 7 전면 공개 결과.
+STA_W1_DISCLOSURE_LIMITED,BOOL,FALSE,ROUTE,일부 핵심 인물에게만 공개,Day 7 제한 공개 결과.
+STA_W2_PRESERVATION_OPEN,BOOL,FALSE,SYSTEM,Week2 외부 보존 퀘스트 개방,수송선을 피난처로 확정하면 TRUE.
+STA_W2_EVAC_PROGRESS,INT,0,SYSTEM,수송선 피난 준비도,반복 준비 행동으로 증가. 4 이상이면 준비 완료 Event.
+STA_PRESERVE_SETTLEMENT,INT,0,WORLD,거주지 보존도 누적값,Character/Side/반복 행동으로 증가. Day21 시각적 상태에 사용.
+STA_PRESERVE_OASIS,INT,0,WORLD,오아시스 보존도 누적값,정착 물리 가능성 판단에 사용.
+STA_PRESERVE_GRAVEYARD,INT,0,WORLD,묘지 보존도 누적값,정서적/기억의 보존. 정착 물리 자원과는 별개.
+STA_PRESERVE_SHIP,INT,0,WORLD,Week1~2 수송선 외부 구조·설비 보존도,Day21 외부 수송선 상태와 정착/복구 가능성.
+STA_W2_SEEDS_PRESERVED,BOOL,FALSE,WORLD,씨앗·재배 장비를 보존함,정착 하드 엔딩 보조 조건.
+STA_W2_PERSONAL_ITEMS_FLEXIBLE,BOOL,FALSE,WORLD,일부 개인 물품 반입을 허용함,사회적 반응/거주 만족도 변형용.
+STA_W3_PRE_STORM_DATA,BOOL,FALSE,INFO,폭풍 전 마지막 외부 관측 자료 확보,Week3 폭풍 분석 빠른 선택지 조건.
+STA_W3_NAV_STABILITY,INT,1,SYSTEM,Week3 지휘·항해 구역 안정도,Daily 관리와 사건 선택으로 증감.
+STA_W3_SUPPLY_STABILITY,INT,1,SYSTEM,Week3 보급·생명유지 안정도,식량·물·부품·온실 관리.
+STA_W3_TECH_STABILITY,INT,1,SYSTEM,Week3 기관·연구 안정도,코어·전력·정비·분석 시스템.
+STA_W3_HABIT_STABILITY,INT,1,SYSTEM,Week3 거주 구역 안정도,생활·의료·갈등·회복.
+STA_W3_POWER_PRIORITY,ENUM,UNDECIDED,SYSTEM,Week3 첫날 전력 우선순위 선택,NAV / TECH / HABIT 값 사용.
+STA_W3_OBSERVATION_PROGRESS,INT,0,SYSTEM,폭풍 분석 관측 진행도,3 이상이면 폭풍 패턴 발견 Event.
+STA_W3_FUTURE_TALKS_OPEN,BOOL,FALSE,SYSTEM,폭풍 종료 예측 발표 후 미래 대화 개방,6개 Character Quest 활성화 기준.
+STA_W3_FUTURE_TALKS_DONE,INT,0,SYSTEM,미래 입장 대화를 끝낸 인물 수,6 이상이면 Main Future 완료 Event.
+STA_STANCE_SAM,ENUM,UNDECIDED,ROUTE,샘의 폭풍 이후 입장,TEMP 초기값. LEAVE/STAY/UNDECIDED.
+STA_STANCE_JINA,ENUM,LEAVE,ROUTE,지나의 폭풍 이후 입장,TEMP 초기값.
+STA_STANCE_FAYE,ENUM,LEAVE,ROUTE,페이의 폭풍 이후 입장,TEMP 초기값.
+STA_STANCE_BENJAMIN,ENUM,STAY,ROUTE,벤자민의 폭풍 이후 입장,기존 설정상 떠나고 싶지 않음을 반영.
+STA_STANCE_BORICHI,ENUM,LEAVE,ROUTE,보리치의 폭풍 이후 입장,안전/추가 사망 회피 성향 반영.
+STA_STANCE_DIYA,ENUM,STAY,ROUTE,디야의 폭풍 이후 입장,공동체/정착 관점 기반 TEMP.
