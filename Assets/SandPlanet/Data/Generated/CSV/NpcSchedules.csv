@@ -1,0 +1,8 @@
+ScheduleID,CharacterID,OpenDay,CloseDay,Morning,Afternoon,Evening,LocationID,ScheduleConditionLogic,ScheduleCond1Type,ScheduleCond1Key,ScheduleCond1Operator,ScheduleCond1Value,ScheduleCond2Type,ScheduleCond2Key,ScheduleCond2Operator,ScheduleCond2Value,Priority,Active,WriterNote
+SCH_BEN_W1_GRAVE_EVE,CHA_BENJAMIN,1,6,FALSE,FALSE,TRUE,LOC_03_GRAVEYARD,AND,STATE,STA_W1_MEMORIAL_COMPLETED,EQ,TRUE,AFFINITY,CHA_BENJAMIN,GE,1,100,TRUE,추모 완료 + 호감도 1 이상이면 저녁 묘지 방문.
+SCH_W3_SAM_COMMAND,CHA_SAM,15,21,TRUE,TRUE,TRUE,LOC_05_COMMAND,,,,,,,,,,100,TRUE,Week3 샘은 지휘·항해 구역 중심.
+SCH_W3_JINA_SUPPLY,CHA_JINA,15,21,TRUE,TRUE,TRUE,LOC_06_SUPPLY,,,,,,,,,,100,TRUE,Week3 지나 보급·생명유지 담당.
+SCH_W3_FAYE_TECH,CHA_FAYE,15,21,TRUE,TRUE,TRUE,LOC_07_TECH,,,,,,,,,,100,TRUE,Week3 페이 기관·연구 구역.
+SCH_W3_BEN_TECH,CHA_BENJAMIN,15,21,TRUE,TRUE,TRUE,LOC_07_TECH,,,,,,,,,,90,TRUE,Week3 벤자민 기관·연구 보조. TEMP.
+SCH_W3_BOR_TECH,CHA_BORICHI,15,21,TRUE,TRUE,TRUE,LOC_07_TECH,,,,,,,,,,110,TRUE,Week3 폭풍 분석 때문에 연구 구역 중심.
+SCH_W3_DIYA_HABIT,CHA_DIYA,15,21,TRUE,TRUE,TRUE,LOC_08_HABIT,,,,,,,,,,100,TRUE,Week3 디야 거주 구역의 공동체 문제 담당.
