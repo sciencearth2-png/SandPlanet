@@ -1,0 +1,17 @@
+BeatID,ChoiceID,BeatOrder,PresentationType,SpeakerType,SpeakerID,SpeakerNameOverride,BodyText,AdvanceText,ResultHint,Active,WriterNote
+BEAT_CHO_W1_AWAKE_01,CHO_W1_AWAKE,1,DIALOGUE,CHARACTER,CHA_SAM,,"네가 잠든 뒤로 많은 일이 있었어. 처음엔 다들 네가 다시 깨어날 수 있을지도 몰랐고.","누가 죽었어?",,TRUE,"이어가기 버튼이 제이의 질문/입장을 대변하는 예시."
+BEAT_CHO_W1_AWAKE_02,CHO_W1_AWAKE,2,DIALOGUE,CHARACTER,CHA_SAM,,"…몇 명은 사고에서 살아남지 못했어. 그 뒤에도 우리는 여기서 계속 버텨야 했고.","그리고 지금은?",,TRUE,
+BEAT_CHO_W1_AWAKE_03,CHO_W1_AWAKE,3,NARRATION,NARRATOR,,,"긴 설명이 끝날 무렵, 제이는 자신이 빠져 있던 시간이 얼마나 컸는지 조금씩 실감한다.","직접 둘러보자.","(개인 XP +1)",TRUE,"마지막 버튼을 누를 때 실제 Choice 결과/Event가 적용."
+BEAT_CHO_W1_INVEST_REPORT_01,CHO_W1_INVEST_REPORT,1,DIALOGUE,PLAYER,,제이,"오아시스는 당장 쓸 수 있어. 하지만 장기적으로 안전하다고 보긴 어려워.","근거를 설명한다.",,TRUE,
+BEAT_CHO_W1_INVEST_REPORT_02,CHO_W1_INVEST_REPORT,2,DIALOGUE,CHARACTER,CHA_SAM,,"샘은 중간에 끼어들지 않고 끝까지 듣는다. 마지막에야 짧게 묻는다. “다른 사람들도 알아야 할까?”","그건 생각해 봐야 해.",,TRUE,
+BEAT_CHO_W1_INVEST_REPORT_03,CHO_W1_INVEST_REPORT,3,NARRATION,NARRATOR,,,"조사는 끝났지만 문제는 더 커졌다. 이제 위험 자체보다, 이 사실을 어떻게 다룰지가 남았다.","대화를 마친다.","(대인 XP +1)",TRUE,
+BEAT_CHO_W1_DISCLOSE_ALL_01,CHO_W1_DISCLOSE_ALL,1,NARRATION,NARRATOR,,,"제이는 사람들을 한자리에 모은다. 설명은 짧게 끝나지 않는다. 질문이 이어지고, 같은 내용을 몇 번이고 다시 말해야 한다.","숨기지 않고 계속 설명한다.",,TRUE,
+BEAT_CHO_W1_DISCLOSE_ALL_02,CHO_W1_DISCLOSE_ALL,2,DIALOGUE,PLAYER,,제이,"“지금 당장 떠나자는 얘기가 아니야. 하지만 위험을 모른 채 준비하게 만들고 싶지는 않아.”","사람들의 반응을 듣는다.",,TRUE,
+BEAT_CHO_W1_DISCLOSE_ALL_03,CHO_W1_DISCLOSE_ALL,3,NARRATION,NARRATOR,,,"하루가 저물 무렵, 진실은 공동체 전체에 퍼져 있었다. 몇몇은 벌써 짐을 챙기고, 몇몇은 제이에게 따져 묻기 시작한다.","오늘의 설명을 끝낸다.","(12시간 경과 / 대인 XP +2 / 모두에게 공개)",TRUE,
+BEAT_CHO_W1_DISCLOSE_LIMITED_01,CHO_W1_DISCLOSE_LIMITED,1,DIALOGUE,CHARACTER,CHA_SAM,,"“준비에 꼭 필요한 사람부터 부르자. 아직 확실하지 않은 이야기까지 퍼지면 통제가 안 될 수도 있어.”","누구에게 먼저 말할지 정한다.",,TRUE,
+BEAT_CHO_W1_DISCLOSE_LIMITED_02,CHO_W1_DISCLOSE_LIMITED,2,NARRATION,NARRATOR,,,"샘과 제이는 기술자와 생활 관리자를 차례로 찾아간다. 같은 설명을 반복하지만, 밖의 분위기는 평소와 크게 다르지 않다.","마지막 브리핑을 마친다.",,TRUE,
+BEAT_CHO_W1_DISCLOSE_LIMITED_03,CHO_W1_DISCLOSE_LIMITED,3,DIALOGUE,PLAYER,,제이,"“일단 우리가 준비할 수 있는 것부터 하자. 더 말할지는 그 다음에 결정해.”","결정을 확정한다.","(6시간 경과 / 기술 XP +1 / 제한 공개)",TRUE,
+BEAT_CHO_W1_BEN_NAMES_01,CHO_W1_BEN_NAMES,1,NARRATION,NARRATOR,,,"벤자민은 먼저 말을 꺼내지 않는다. 몇몇 묘비 앞에서는 오히려 걸음을 더 늦춘다.","그 이름은 누구야?",,TRUE,
+BEAT_CHO_W1_BEN_NAMES_02,CHO_W1_BEN_NAMES,2,DIALOGUE,CHARACTER,CHA_BENJAMIN,,"“설명한다고 달라질 건 없어. 그래도… 기억하는 사람은 있어야겠지.”","같이 조금 더 걷는다.","(대인 XP +1 / 벤자민 호감도 +1)",TRUE,
+BEAT_CHO_W2_STORM_WARN_01,CHO_W2_STORM_WARN,1,DIALOGUE,CHARACTER,CHA_BORICHI,,"“이 정도 수치는 평소 편차로 보기 어려워. 문제는 규모보다도, 얼마나 오래 머무느냐야.”","지질 자료와 겹쳐 본다.",,TRUE,
+BEAT_CHO_W2_STORM_WARN_02,CHO_W2_STORM_WARN,2,DIALOGUE,PLAYER,,제이,"“퇴적 방향도 평소와 달라. 적어도 외부에서 버틸 폭풍은 아니야.”","샘에게 경고하자.","(기술 XP +1 / 대형 모래폭풍 접근 확인)",TRUE,
