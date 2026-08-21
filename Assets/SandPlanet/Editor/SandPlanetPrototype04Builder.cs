@@ -29,7 +29,7 @@ namespace SandPlanet.EditorTools
         private static readonly string[] CsvFiles =
         {
             "Locations.csv", "Characters.csv", "WorldTargets.csv", "Quests.csv", "QuestSteps.csv",
-            "Interactions.csv", "Choices.csv", "States.csv", "Events.csv", "EventTriggers.csv", "NpcSchedules.csv"
+            "Interactions.csv", "Choices.csv", "ChoiceBeats.csv", "States.csv", "Events.csv", "EventTriggers.csv", "NpcSchedules.csv"
         };
 
         [MenuItem("Tools/SandPlanet/Generate Prototype 0.4")]
@@ -212,7 +212,7 @@ namespace SandPlanet.EditorTools
 
         private static GameObject Panel(Transform parent, string name, Color color) { GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image)); go.transform.SetParent(parent); go.GetComponent<Image>().color = color; return go; }
         private static Text Text(Transform parent, string name, Font font, int size, TextAnchor anchor) { GameObject go = new GameObject(name, typeof(RectTransform), typeof(Text)); go.transform.SetParent(parent); Text t = go.GetComponent<Text>(); t.font = font; t.fontSize = size; t.alignment = anchor; t.color = Color.white; t.horizontalOverflow = HorizontalWrapMode.Wrap; t.verticalOverflow = VerticalWrapMode.Overflow; return t; }
-        private static Button Button(Transform parent, string name, Font font, string label, Color color) { GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button)); go.transform.SetParent(parent); go.GetComponent<Image>().color = color; Button b = go.GetComponent<Button>(); Text t = Text(go.transform, "Text", font, 17, TextAnchor.MiddleCenter); Stretch(t.rectTransform, 10, 10, 6, 6); return b; }
+        private static Button Button(Transform parent, string name, Font font, string label, Color color) { GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button)); go.transform.SetParent(parent); go.GetComponent<Image>().color = color; Button b = go.GetComponent<Button>(); Text t = Text(go.transform, "Text", font, 17, TextAnchor.MiddleCenter); t.text = label; Stretch(t.rectTransform, 10, 10, 6, 6); return b; }
         private static Transform Vertical(Transform parent, string name) { GameObject go = new GameObject(name, typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter)); go.transform.SetParent(parent); VerticalLayoutGroup v = go.GetComponent<VerticalLayoutGroup>(); v.spacing = 8; v.childControlHeight = true; v.childControlWidth = true; v.childForceExpandHeight = false; v.childForceExpandWidth = true; ContentSizeFitter f = go.GetComponent<ContentSizeFitter>(); f.verticalFit = ContentSizeFitter.FitMode.PreferredSize; return go.transform; }
         private static void Height(GameObject go, float h) { LayoutElement e = go.AddComponent<LayoutElement>(); e.preferredHeight = h; e.minHeight = h; }
         private static void Stretch(RectTransform r, float l, float rr, float b, float t) { r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = new Vector2(l, b); r.offsetMax = new Vector2(-rr, -t); }
