@@ -10,12 +10,16 @@ using UnityEngine.UI;
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Prototype 0.4 convenience/UI layer.
+    /// Prototype 0.4 convenience/UI layer for the v1.6 authoring model.
     /// Keeps the CSV-driven controller focused on rules while improving HUD/readability.
     /// </summary>
     public sealed class SandPlanetPrototype04UxEnhancer : MonoBehaviour
     {
         private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
+        private const string MainColor = "#F0A24A";
+        private const string CharacterColor = "#69C77C";
+        private const string SideColor = "#F1D784";
+        private const string BasicColor = "#AAB4BE";
 
         private SandPlanetPrototype04Controller controller;
         private SandPlanetContent04 content;
@@ -121,8 +125,8 @@ namespace SandPlanet.Prototype
 
         private void RefreshBeforeRender()
         {
-            // Target buttons are created by the controller in the same frame as the location click.
-            // Updating here guarantees [MAIN]/[CHAR]/[SUB]/[일상] is already present on the first rendered frame.
+            // Target buttons are built in the same frame as a location click.
+            // Synchronizing before Canvas render prevents ?/!/일상 labels from visibly popping in later.
             RefreshAll(false);
             RefreshProgressBars();
         }
@@ -426,7 +430,10 @@ namespace SandPlanet.Prototype
                 Text text = button.GetComponentInChildren<Text>(true);
                 if (text == null) continue;
                 text.supportRichText = true;
-                text.text = $"{info.Kind}  {info.Name}   {BuildBadgeText(info.Type, info.Id)}";
+                string badges = BuildBadgeText(info.Type, info.Id);
+                text.text = string.IsNullOrEmpty(badges)
+                    ? $"{info.Kind}  {info.Name}"
+                    : $"{info.Kind}  {info.Name}   {badges}";
             }
         }
 
@@ -440,21 +447,35 @@ namespace SandPlanet.Prototype
         private string BuildBadgeText(string targetType, string targetId)
         {
             List<SandPlanetInteraction04> available = GetAvailableInteractions(targetType, targetId);
-            HashSet<string> types = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (SandPlanetInteraction04 i in available)
-            {
-                if (i.InteractionType != "QUEST" || string.IsNullOrEmpty(i.QuestId)) continue;
-                if (content.Quests.TryGetValue(i.QuestId, out SandPlanetQuest04 quest))
-                    types.Add(quest.Type ?? string.Empty);
-            }
-
             List<string> badges = new List<string>();
-            if (types.Contains("MAIN")) badges.Add("<color=#F0B15E>[MAIN]</color>");
-            if (types.Contains("CHARACTER")) badges.Add("<color=#74C0FC>[CHAR]</color>");
-            if (types.Contains("SIDE") || types.Contains("WORLD")) badges.Add("<color=#91C788>[SUB]</color>");
-            if (badges.Count == 0 && available.Any(i => i.InteractionType == "BASIC"))
-                badges.Add("<color=#AAB4BE>[일상]</color>");
-            return string.Join("", badges);
+
+            AddMarker(badges, available, "MAIN", "OFFER", "?", MainColor);
+            AddMarker(badges, available, "MAIN", "PROGRESS", "!", MainColor);
+            AddMarker(badges, available, "CHARACTER", "OFFER", "?", CharacterColor);
+            AddMarker(badges, available, "CHARACTER", "PROGRESS", "!", CharacterColor);
+            AddMarker(badges, available, "SIDE", "OFFER", "?", SideColor);
+            AddMarker(badges, available, "SIDE", "PROGRESS", "!", SideColor);
+
+            if (badges.Count == 0 && available.Any(i => NormalizeRole(i) == "NONE"))
+                badges.Add($"<color={BasicColor}>[일상]</color>");
+            return string.Join(" ", badges);
+        }
+
+        private void AddMarker(List<string> output, List<SandPlanetInteraction04> available, string questType, string role, string marker, string color)
+        {
+            bool exists = available.Any(i =>
+                NormalizeRole(i) == role &&
+                !string.IsNullOrEmpty(i.QuestId) &&
+                content.Quests.TryGetValue(i.QuestId, out SandPlanetQuest04 q) &&
+                string.Equals(q.Type, questType, StringComparison.OrdinalIgnoreCase));
+            if (exists) output.Add($"<color={color}><b>{marker}</b></color>");
+        }
+
+        private static string NormalizeRole(SandPlanetInteraction04 interaction)
+        {
+            if (interaction == null) return "NONE";
+            if (!string.IsNullOrEmpty(interaction.QuestRole)) return interaction.QuestRole.ToUpperInvariant();
+            return string.IsNullOrEmpty(interaction.QuestId) ? "NONE" : "PROGRESS";
         }
 
         private List<SandPlanetInteraction04> GetAvailableInteractions(string targetType, string targetId)
@@ -490,27 +511,27 @@ namespace SandPlanet.Prototype
             string locationName = content.Locations.TryGetValue(locationId, out SandPlanetLocation04 location) ? location.Name : locationId;
             if (string.IsNullOrEmpty(selectedTargetId))
             {
-                contextText.text = $"<b>{locationName}</b>\n대상 {CountTargets(locationId)}개 · 활성 Quest 대상 {CountQuestTargets(locationId)}개";
+                contextText.text = $"<b>{locationName}</b>\n대상 {CountTargets(locationId)}개 · Quest 연계 대상 {CountQuestTargets(locationId)}개";
                 return;
             }
 
             string targetName = GetTargetName(selectedTargetType, selectedTargetId);
             string kind = selectedTargetType == "CHARACTER" ? "인물" : "사물";
-            List<SandPlanetQuest04> quests = GetAvailableInteractions(selectedTargetType, selectedTargetId)
-                .Where(i => i.InteractionType == "QUEST" && !string.IsNullOrEmpty(i.QuestId) && content.Quests.ContainsKey(i.QuestId))
-                .Select(i => content.Quests[i.QuestId])
-                .GroupBy(q => q.Id)
+            List<SandPlanetInteraction04> linked = GetAvailableInteractions(selectedTargetType, selectedTargetId)
+                .Where(i => !string.IsNullOrEmpty(i.QuestId) && content.Quests.ContainsKey(i.QuestId))
+                .OrderBy(i => QuestTypeOrder(content.Quests[i.QuestId].Type))
+                .ThenBy(i => NormalizeRole(i) == "OFFER" ? 0 : 1)
+                .ThenBy(i => content.Quests[i.QuestId].Title)
+                .GroupBy(i => i.QuestId + "#" + NormalizeRole(i))
                 .Select(g => g.First())
-                .OrderBy(q => QuestTypeOrder(q.Type))
-                .ThenBy(q => q.Title)
                 .Take(2)
                 .ToList();
 
-            string questText = quests.Count == 0
-                ? "활성 Quest 없음"
-                : string.Join("   ", quests.Select(q => Badge(q.Type) + " " + q.Title));
+            string questText = linked.Count == 0
+                ? "현재 Quest 연계 없음"
+                : string.Join("   ", linked.Select(i => QuestBadge(content.Quests[i.QuestId].Type, NormalizeRole(i)) + " " + content.Quests[i.QuestId].Title));
 
-            contextText.text = $"<b>{locationName}  ›  {targetName}</b>  <color=#AAB4BE>{kind}</color>\n{questText}";
+            contextText.text = $"<b>{locationName}  ›  {targetName}</b>  <color={BasicColor}>{kind}</color>\n{questText}";
         }
 
         private string ActiveMainQuestTitle()
@@ -539,9 +560,9 @@ namespace SandPlanet.Prototype
         {
             int count = 0;
             foreach (SandPlanetCharacter04 c in content.Characters.Values.Where(c => c.Active && GetActualCharacterLocation(c.Id) == locationId))
-                if (GetAvailableInteractions("CHARACTER", c.Id).Any(i => i.InteractionType == "QUEST")) count++;
+                if (GetAvailableInteractions("CHARACTER", c.Id).Any(i => !string.IsNullOrEmpty(i.QuestId))) count++;
             foreach (SandPlanetWorldTarget04 w in content.WorldTargets.Values.Where(w => w.Active && w.Clickable && w.LocationId == locationId))
-                if (GetAvailableInteractions("WORLD_TARGET", w.Id).Any(i => i.InteractionType == "QUEST")) count++;
+                if (GetAvailableInteractions("WORLD_TARGET", w.Id).Any(i => !string.IsNullOrEmpty(i.QuestId))) count++;
             return count;
         }
 
@@ -550,7 +571,6 @@ namespace SandPlanet.Prototype
             bool modalBusy = modalBusyField != null && (bool)modalBusyField.GetValue(controller);
             if (modalBusy)
             {
-                // Before a forced Event choice is made, ESC must not bypass the decision.
                 if (IsForcedEventChoice()) return;
                 if (handleEscapeFromUxMethod != null) handleEscapeFromUxMethod.Invoke(controller, null);
                 return;
@@ -586,11 +606,12 @@ namespace SandPlanet.Prototype
 
         private static int QuestTypeOrder(string type) => type == "MAIN" ? 0 : type == "CHARACTER" ? 1 : 2;
 
-        private static string Badge(string type)
+        private static string QuestBadge(string type, string role)
         {
-            if (type == "MAIN") return "<color=#F0B15E>[MAIN]</color>";
-            if (type == "CHARACTER") return "<color=#74C0FC>[CHAR]</color>";
-            return "<color=#91C788>[SUB]</color>";
+            string shortType = type == "CHARACTER" ? "CHAR" : type == "SIDE" ? "SIDE" : "MAIN";
+            string marker = role == "OFFER" ? "?" : role == "PROGRESS" ? "!" : string.Empty;
+            string color = type == "MAIN" ? MainColor : type == "CHARACTER" ? CharacterColor : SideColor;
+            return $"<color={color}><b>[{shortType}{(string.IsNullOrEmpty(marker) ? string.Empty : " " + marker)}]</b></color>";
         }
 
         private int GetInt(FieldInfo field)
