@@ -10,12 +10,8 @@ using UnityEngine.UI;
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Runtime UX layer for Prototype 0.4.
-    /// Keeps the CSV/data-driven controller untouched while improving the generated scene UI:
-    /// - two-row HUD similar to Prototype 0.3
-    /// - always-visible context card
-    /// - MAIN / CHAR / SUB badges on target buttons
-    /// - ESC closes the top-most modal or returns from a location to the hub
+    /// Prototype 0.4 convenience/UI layer.
+    /// It intentionally leaves the CSV-driven game controller unchanged.
     /// </summary>
     public sealed class SandPlanetPrototype04UxEnhancer : MonoBehaviour
     {
@@ -43,6 +39,7 @@ namespace SandPlanet.Prototype
         private MethodInfo closeModalMethod;
         private MethodInfo closeLocationMethod;
         private MethodInfo getQuestStatusMethod;
+        private MethodInfo getCharacterLocationMethod;
 
         private Canvas canvas;
         private Text hudText;
@@ -50,8 +47,7 @@ namespace SandPlanet.Prototype
         private Button endDayButton;
         private Button backButton;
         private Transform targetRoot;
-        private RectTransform questPanelRect;
-        private RectTransform locationPanelRect;
+        private Transform modalButtonRoot;
 
         private string selectedTargetType;
         private string selectedTargetId;
@@ -93,13 +89,9 @@ namespace SandPlanet.Prototype
             endDayButton = FindNamed<Button>(canvas.transform, "EndDay");
             backButton = FindNamed<Button>(canvas.transform, "Back");
             targetRoot = FindNamed<Transform>(canvas.transform, "TargetButtons");
+            modalButtonRoot = FindNamed<Transform>(canvas.transform, "ModalButtons");
 
-            Transform questPanel = FindChildRecursive(canvas.transform, "QuestTrackerPanel");
-            questPanelRect = questPanel != null ? questPanel.GetComponent<RectTransform>() : null;
-            Transform locationPanel = FindChildRecursive(canvas.transform, "LocationPanel");
-            locationPanelRect = locationPanel != null ? locationPanel.GetComponent<RectTransform>() : null;
-
-            RestyleExistingUi();
+            RestyleHudAndPanels();
             CreateContextCard();
             RefreshAll(true);
         }
@@ -112,14 +104,11 @@ namespace SandPlanet.Prototype
 
         private void LateUpdate()
         {
-            // The data controller refreshes its HUD during gameplay; overwrite it after that refresh.
             RefreshHud();
 
-            if (Time.unscaledTime >= nextRefreshTime)
-            {
-                nextRefreshTime = Time.unscaledTime + 0.08f;
-                RefreshAll(false);
-            }
+            if (Time.unscaledTime < nextRefreshTime) return;
+            nextRefreshTime = Time.unscaledTime + 0.08f;
+            RefreshAll(false);
         }
 
         private void CacheReflection()
@@ -142,19 +131,19 @@ namespace SandPlanet.Prototype
             closeModalMethod = controllerType.GetMethod("CloseModal", PrivateInstance);
             closeLocationMethod = controllerType.GetMethod("CloseLocation", PrivateInstance);
             getQuestStatusMethod = controllerType.GetMethod("GetQuestStatus", PrivateInstance);
+            getCharacterLocationMethod = controllerType.GetMethod("GetCharacterLocation", PrivateInstance);
         }
 
-        private void RestyleExistingUi()
+        private void RestyleHudAndPanels()
         {
-            Transform hudPanel = FindChildRecursive(canvas.transform, "HUDPanel");
+            RectTransform hudPanel = GetRect("HUDPanel");
             if (hudPanel != null)
             {
-                RectTransform r = hudPanel.GetComponent<RectTransform>();
-                r.anchorMin = new Vector2(0f, 1f);
-                r.anchorMax = new Vector2(1f, 1f);
-                r.pivot = new Vector2(.5f, 1f);
-                r.anchoredPosition = Vector2.zero;
-                r.sizeDelta = new Vector2(0f, 104f);
+                hudPanel.anchorMin = new Vector2(0f, 1f);
+                hudPanel.anchorMax = new Vector2(1f, 1f);
+                hudPanel.pivot = new Vector2(.5f, 1f);
+                hudPanel.anchoredPosition = Vector2.zero;
+                hudPanel.sizeDelta = new Vector2(0f, 104f);
             }
 
             if (hudText != null)
@@ -167,6 +156,7 @@ namespace SandPlanet.Prototype
                 hudText.fontSize = 19;
                 hudText.alignment = TextAnchor.MiddleLeft;
                 hudText.lineSpacing = 1.05f;
+                hudText.supportRichText = true;
             }
 
             if (endDayButton != null)
@@ -175,33 +165,33 @@ namespace SandPlanet.Prototype
                 r.anchorMin = r.anchorMax = r.pivot = Vector2.one;
                 r.anchoredPosition = new Vector2(-18f, -13f);
                 r.sizeDelta = new Vector2(165f, 46f);
-                ForceButtonLabel(endDayButton, "하루 종료");
+                SetButtonText(endDayButton, "하루 종료");
             }
 
             if (backButton != null)
             {
-                ForceButtonLabel(backButton, "허브로  [ESC]");
-                RectTransform r = backButton.GetComponent<RectTransform>();
-                r.sizeDelta = new Vector2(165f, 48f);
+                backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(165f, 48f);
+                SetButtonText(backButton, "허브로  [ESC]");
             }
 
-            if (questPanelRect != null)
-                questPanelRect.anchoredPosition = new Vector2(16f, -118f);
+            RectTransform quest = GetRect("QuestTrackerPanel");
+            if (quest != null)
+                quest.anchoredPosition = new Vector2(16f, -118f);
 
-            // Leave more breathing room below the new two-line HUD.
-            if (locationPanelRect != null)
+            RectTransform location = GetRect("LocationPanel");
+            if (location != null)
             {
-                locationPanelRect.anchorMax = new Vector2(.99f, .88f);
-                locationPanelRect.anchorMin = new Vector2(.53f, .06f);
+                location.anchorMin = new Vector2(.53f, .06f);
+                location.anchorMax = new Vector2(.99f, .88f);
             }
         }
 
         private void CreateContextCard()
         {
-            Transform old = FindChildRecursive(canvas.transform, "UX04_ContextCard");
-            if (old != null)
+            Transform existing = FindChildRecursive(canvas.transform, "UX04_ContextCard");
+            if (existing != null)
             {
-                contextText = old.GetComponentInChildren<Text>(true);
+                contextText = existing.GetComponentInChildren<Text>(true);
                 return;
             }
 
@@ -211,16 +201,19 @@ namespace SandPlanet.Prototype
             r.anchorMin = r.anchorMax = r.pivot = Vector2.one;
             r.anchoredPosition = new Vector2(-198f, -13f);
             r.sizeDelta = new Vector2(350f, 78f);
-            card.GetComponent<Image>().color = new Color(.07f, .085f, .10f, .96f);
+            Image image = card.GetComponent<Image>();
+            image.color = new Color(.07f, .085f, .10f, .96f);
+            image.raycastTarget = false;
 
-            GameObject textObject = new GameObject("ContextText", typeof(RectTransform), typeof(Text));
-            textObject.transform.SetParent(card.transform, false);
-            contextText = textObject.GetComponent<Text>();
+            GameObject textGo = new GameObject("ContextText", typeof(RectTransform), typeof(Text));
+            textGo.transform.SetParent(card.transform, false);
+            contextText = textGo.GetComponent<Text>();
             contextText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             contextText.fontSize = 15;
             contextText.color = Color.white;
             contextText.alignment = TextAnchor.MiddleLeft;
             contextText.supportRichText = true;
+            contextText.raycastTarget = false;
             RectTransform tr = contextText.rectTransform;
             tr.anchorMin = Vector2.zero;
             tr.anchorMax = Vector2.one;
@@ -238,13 +231,14 @@ namespace SandPlanet.Prototype
             if (force || !string.Equals(locationId, lastLocationId, StringComparison.Ordinal))
             {
                 lastLocationId = locationId;
-                selectedTargetId = null;
                 selectedTargetType = null;
+                selectedTargetId = null;
             }
 
             RefreshTargetBadges(locationId);
             RefreshContext(locationId);
-            RefreshButtonLabels();
+            SetButtonText(endDayButton, "하루 종료");
+            SetButtonText(backButton, "허브로  [ESC]");
         }
 
         private void RefreshHud()
@@ -253,28 +247,14 @@ namespace SandPlanet.Prototype
 
             int day = GetInt(dayField);
             int hour = GetInt(hourField);
-            int will = GetInt(willField);
-            int maxWill = GetInt(maxWillField);
-            int pLv = GetInt(personalLevelField);
-            int pXp = GetInt(personalXpField);
-            int sLv = GetInt(socialLevelField);
-            int sXp = GetInt(socialXpField);
-            int tLv = GetInt(technicalLevelField);
-            int tXp = GetInt(technicalXpField);
-
             string slot = hour < 12 ? "오전" : hour < 17 ? "오후" : "저녁";
             string world = day >= 15 ? "수송선 내부" : "모래 행성";
 
             hudText.text =
-                $"DAY {day:00} / 21     {hour:00}:00     의지 {will}/{maxWill}     시간대 {slot}     <color=#B7C2CC>{world}</color>\n" +
-                $"개인 Lv{pLv}  {pXp}/6        대인 Lv{sLv}  {sXp}/6        기술 Lv{tLv}  {tXp}/6        <color=#9AA6B2>6XP → 즉시 Lv +1</color>";
-            hudText.supportRichText = true;
-        }
-
-        private void RefreshButtonLabels()
-        {
-            if (endDayButton != null) ForceButtonLabel(endDayButton, "하루 종료");
-            if (backButton != null) ForceButtonLabel(backButton, "허브로  [ESC]");
+                $"DAY {day:00} / 21     {hour:00}:00     의지 {GetInt(willField)}/{GetInt(maxWillField)}     시간대 {slot}     <color=#B7C2CC>{world}</color>\n" +
+                $"개인 Lv{GetInt(personalLevelField)}  {GetInt(personalXpField)}/6        " +
+                $"대인 Lv{GetInt(socialLevelField)}  {GetInt(socialXpField)}/6        " +
+                $"기술 Lv{GetInt(technicalLevelField)}  {GetInt(technicalXpField)}/6        <color=#9AA6B2>6XP → 즉시 Lv +1</color>";
         }
 
         private void RefreshTargetBadges(string locationId)
@@ -283,7 +263,7 @@ namespace SandPlanet.Prototype
 
             List<TargetInfo> expected = new List<TargetInfo>();
             expected.AddRange(content.Characters.Values
-                .Where(c => c.Active && string.Equals(GetCharacterLocation(c), locationId, StringComparison.Ordinal))
+                .Where(c => c.Active && GetActualCharacterLocation(c.Id) == locationId)
                 .OrderBy(c => c.Name)
                 .Select(c => new TargetInfo("CHARACTER", c.Id, c.Name, "인물")));
             expected.AddRange(content.WorldTargets.Values
@@ -295,9 +275,9 @@ namespace SandPlanet.Prototype
             for (int i = 0; i < targetRoot.childCount; i++)
             {
                 Transform child = targetRoot.GetChild(i);
-                Button b = child.GetComponent<Button>();
-                if (b != null && child.gameObject.activeSelf)
-                    buttons.Add(b);
+                Button button = child.GetComponent<Button>();
+                if (button != null && child.gameObject.activeSelf)
+                    buttons.Add(button);
             }
 
             int count = Mathf.Min(buttons.Count, expected.Count);
@@ -309,10 +289,6 @@ namespace SandPlanet.Prototype
                 if (binding == null)
                 {
                     binding = button.gameObject.AddComponent<SandPlanetPrototype04UxTargetBinding>();
-                    binding.TargetType = info.Type;
-                    binding.TargetId = info.Id;
-                    binding.TargetName = info.Name;
-                    binding.KindLabel = info.Kind;
                     SandPlanetPrototype04UxTargetBinding captured = binding;
                     button.onClick.AddListener(() =>
                     {
@@ -322,6 +298,10 @@ namespace SandPlanet.Prototype
                     });
                 }
 
+                binding.TargetType = info.Type;
+                binding.TargetId = info.Id;
+                binding.TargetName = info.Name;
+
                 Text text = button.GetComponentInChildren<Text>(true);
                 if (text == null) continue;
                 text.supportRichText = true;
@@ -329,26 +309,11 @@ namespace SandPlanet.Prototype
             }
         }
 
-        private string GetCharacterLocation(SandPlanetCharacter04 character)
+        private string GetActualCharacterLocation(string characterId)
         {
-            // For visual badges it is enough to follow the same schedule priority rules for the current day/time.
-            int day = GetInt(dayField);
-            int hour = GetInt(hourField);
-            string best = character.DefaultLocationId;
-            int bestPriority = int.MinValue;
-
-            foreach (SandPlanetSchedule04 s in content.Schedules)
-            {
-                if (!s.Active || s.CharacterId != character.Id || day < s.OpenDay || day > s.CloseDay) continue;
-                bool timeAllowed = hour < 12 ? s.Morning : hour < 17 ? s.Afternoon : s.Evening;
-                if (!timeAllowed) continue;
-                if (s.Priority >= bestPriority)
-                {
-                    bestPriority = s.Priority;
-                    best = s.LocationId;
-                }
-            }
-            return best;
+            if (getCharacterLocationMethod == null) return string.Empty;
+            try { return getCharacterLocationMethod.Invoke(controller, new object[] { characterId }) as string ?? string.Empty; }
+            catch { return string.Empty; }
         }
 
         private string BuildBadgeText(string targetType, string targetId)
@@ -373,21 +338,20 @@ namespace SandPlanet.Prototype
 
         private List<SandPlanetInteraction04> GetAvailableInteractions(string targetType, string targetId)
         {
-            if (content == null || isInteractionAvailableMethod == null)
-                return new List<SandPlanetInteraction04>();
+            List<SandPlanetInteraction04> result = new List<SandPlanetInteraction04>();
+            if (content == null || isInteractionAvailableMethod == null) return result;
 
-            List<SandPlanetInteraction04> list = new List<SandPlanetInteraction04>();
-            foreach (SandPlanetInteraction04 i in content.Interactions)
+            foreach (SandPlanetInteraction04 interaction in content.Interactions)
             {
-                if (!i.Active || i.TargetType != targetType || i.TargetId != targetId) continue;
+                if (!interaction.Active || interaction.TargetType != targetType || interaction.TargetId != targetId) continue;
                 try
                 {
-                    if ((bool)isInteractionAvailableMethod.Invoke(controller, new object[] { i }))
-                        list.Add(i);
+                    if ((bool)isInteractionAvailableMethod.Invoke(controller, new object[] { interaction }))
+                        result.Add(interaction);
                 }
                 catch { }
             }
-            return list;
+            return result;
         }
 
         private void RefreshContext(string locationId)
@@ -405,15 +369,13 @@ namespace SandPlanet.Prototype
             string locationName = content.Locations.TryGetValue(locationId, out SandPlanetLocation04 location) ? location.Name : locationId;
             if (string.IsNullOrEmpty(selectedTargetId))
             {
-                int targetCount = CountTargetsInLocation(locationId);
-                int questTargetCount = CountQuestTargetsInLocation(locationId);
-                contextText.text = $"<b>{locationName}</b>\n대상 {targetCount}개 · 활성 Quest 대상 {questTargetCount}개";
+                contextText.text = $"<b>{locationName}</b>\n대상 {CountTargets(locationId)}개 · 활성 Quest 대상 {CountQuestTargets(locationId)}개";
                 return;
             }
 
             string targetName = GetTargetName(selectedTargetType, selectedTargetId);
             string kind = selectedTargetType == "CHARACTER" ? "인물" : "사물";
-            List<string> questLines = GetAvailableInteractions(selectedTargetType, selectedTargetId)
+            List<SandPlanetQuest04> quests = GetAvailableInteractions(selectedTargetType, selectedTargetId)
                 .Where(i => i.InteractionType == "QUEST" && !string.IsNullOrEmpty(i.QuestId) && content.Quests.ContainsKey(i.QuestId))
                 .Select(i => content.Quests[i.QuestId])
                 .GroupBy(q => q.Id)
@@ -421,67 +383,77 @@ namespace SandPlanet.Prototype
                 .OrderBy(q => QuestTypeOrder(q.Type))
                 .ThenBy(q => q.Title)
                 .Take(2)
-                .Select(q => BadgePlain(q.Type) + " " + q.Title)
                 .ToList();
 
-            contextText.text = $"<b>{locationName}  ›  {targetName}</b>  <color=#AAB4BE>{kind}</color>\n" +
-                               (questLines.Count == 0 ? "활성 Quest 없음" : string.Join("   ", questLines));
+            string questText = quests.Count == 0
+                ? "활성 Quest 없음"
+                : string.Join("   ", quests.Select(q => Badge(q.Type) + " " + q.Title));
+
+            contextText.text = $"<b>{locationName}  ›  {targetName}</b>  <color=#AAB4BE>{kind}</color>\n{questText}";
         }
 
         private string ActiveMainQuestTitle()
         {
-            if (content == null || getQuestStatusMethod == null) return string.Empty;
-            foreach (SandPlanetQuest04 q in content.Quests.Values.Where(q => q.Type == "MAIN").OrderBy(q => q.LogOrder).ThenBy(q => q.Title))
+            if (getQuestStatusMethod == null || content == null) return string.Empty;
+            foreach (SandPlanetQuest04 quest in content.Quests.Values.Where(q => q.Type == "MAIN").OrderBy(q => q.LogOrder).ThenBy(q => q.Title))
             {
                 try
                 {
-                    string status = getQuestStatusMethod.Invoke(controller, new object[] { q.Id }) as string;
-                    if (status == "ACTIVE") return q.Title;
+                    if ((getQuestStatusMethod.Invoke(controller, new object[] { quest.Id }) as string) == "ACTIVE")
+                        return quest.Title;
                 }
                 catch { }
             }
             return string.Empty;
         }
 
-        private int CountTargetsInLocation(string locationId)
+        private int CountTargets(string locationId)
         {
-            int chars = content.Characters.Values.Count(c => c.Active && GetCharacterLocation(c) == locationId);
-            int worlds = content.WorldTargets.Values.Count(w => w.Active && w.Clickable && w.LocationId == locationId);
-            return chars + worlds;
+            int characters = content.Characters.Values.Count(c => c.Active && GetActualCharacterLocation(c.Id) == locationId);
+            int objects = content.WorldTargets.Values.Count(w => w.Active && w.Clickable && w.LocationId == locationId);
+            return characters + objects;
         }
 
-        private int CountQuestTargetsInLocation(string locationId)
+        private int CountQuestTargets(string locationId)
         {
-            HashSet<string> keys = new HashSet<string>(StringComparer.Ordinal);
-            foreach (SandPlanetCharacter04 c in content.Characters.Values.Where(c => c.Active && GetCharacterLocation(c) == locationId))
-            {
-                if (GetAvailableInteractions("CHARACTER", c.Id).Any(i => i.InteractionType == "QUEST"))
-                    keys.Add("C:" + c.Id);
-            }
+            int count = 0;
+            foreach (SandPlanetCharacter04 c in content.Characters.Values.Where(c => c.Active && GetActualCharacterLocation(c.Id) == locationId))
+                if (GetAvailableInteractions("CHARACTER", c.Id).Any(i => i.InteractionType == "QUEST")) count++;
             foreach (SandPlanetWorldTarget04 w in content.WorldTargets.Values.Where(w => w.Active && w.Clickable && w.LocationId == locationId))
-            {
-                if (GetAvailableInteractions("WORLD_TARGET", w.Id).Any(i => i.InteractionType == "QUEST"))
-                    keys.Add("W:" + w.Id);
-            }
-            return keys.Count;
+                if (GetAvailableInteractions("WORLD_TARGET", w.Id).Any(i => i.InteractionType == "QUEST")) count++;
+            return count;
         }
 
         private void HandleEscape()
         {
             bool modalBusy = modalBusyField != null && (bool)modalBusyField.GetValue(controller);
-            if (modalBusy && closeModalMethod != null)
+            if (modalBusy)
             {
-                closeModalMethod.Invoke(controller, null);
+                // Forced Event choices deliberately have a disabled Cancel button. Do not let ESC bypass them.
+                if (IsForcedEventChoice()) return;
+                if (closeModalMethod != null) closeModalMethod.Invoke(controller, null);
                 return;
             }
 
             string locationId = GetString(currentLocationField);
             if (!string.IsNullOrEmpty(locationId) && closeLocationMethod != null)
             {
-                selectedTargetId = null;
                 selectedTargetType = null;
+                selectedTargetId = null;
                 closeLocationMethod.Invoke(controller, null);
             }
+        }
+
+        private bool IsForcedEventChoice()
+        {
+            if (modalButtonRoot == null) return false;
+            foreach (Button button in modalButtonRoot.GetComponentsInChildren<Button>(true))
+            {
+                Text text = button.GetComponentInChildren<Text>(true);
+                if (text != null && text.text == "취소" && !button.interactable)
+                    return true;
+            }
+            return false;
         }
 
         private string GetTargetName(string type, string id)
@@ -491,30 +463,13 @@ namespace SandPlanet.Prototype
             return id;
         }
 
-        private static int QuestTypeOrder(string type)
-        {
-            if (type == "MAIN") return 0;
-            if (type == "CHARACTER") return 1;
-            return 2;
-        }
+        private static int QuestTypeOrder(string type) => type == "MAIN" ? 0 : type == "CHARACTER" ? 1 : 2;
 
-        private static string BadgePlain(string type)
+        private static string Badge(string type)
         {
             if (type == "MAIN") return "<color=#F0B15E>[MAIN]</color>";
             if (type == "CHARACTER") return "<color=#74C0FC>[CHAR]</color>";
             return "<color=#91C788>[SUB]</color>";
-        }
-
-        private static void ForceButtonLabel(Button button, string label)
-        {
-            if (button == null) return;
-            Text text = button.GetComponentInChildren<Text>(true);
-            if (text == null) return;
-            text.text = label;
-            text.color = Color.white;
-            text.fontSize = 17;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.supportRichText = true;
         }
 
         private int GetInt(FieldInfo field)
@@ -524,9 +479,24 @@ namespace SandPlanet.Prototype
             return value is int i ? i : 0;
         }
 
-        private string GetString(FieldInfo field)
+        private string GetString(FieldInfo field) => field != null ? field.GetValue(controller) as string : null;
+
+        private RectTransform GetRect(string name)
         {
-            return field != null ? field.GetValue(controller) as string : null;
+            Transform t = FindChildRecursive(canvas.transform, name);
+            return t != null ? t.GetComponent<RectTransform>() : null;
+        }
+
+        private static void SetButtonText(Button button, string textValue)
+        {
+            if (button == null) return;
+            Text text = button.GetComponentInChildren<Text>(true);
+            if (text == null) return;
+            text.text = textValue;
+            text.color = Color.white;
+            text.fontSize = 17;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.supportRichText = true;
         }
 
         private static T FindNamed<T>(Transform root, string name) where T : Component
@@ -553,6 +523,7 @@ namespace SandPlanet.Prototype
             public readonly string Id;
             public readonly string Name;
             public readonly string Kind;
+
             public TargetInfo(string type, string id, string name, string kind)
             {
                 Type = type;
@@ -568,6 +539,5 @@ namespace SandPlanet.Prototype
         public string TargetType;
         public string TargetId;
         public string TargetName;
-        public string KindLabel;
     }
 }
