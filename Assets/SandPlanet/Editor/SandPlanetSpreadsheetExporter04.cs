@@ -39,6 +39,7 @@ namespace SandPlanet.EditorTools
             new Spec("05_퀘스트 단계", "QuestStepID", "QuestSteps.csv"),
             new Spec("06_상호작용·진입", "InteractionID", "Interactions.csv"),
             new Spec("07_시간 소모 선택지", "ChoiceSetID", "Choices.csv"),
+            new Spec("13_선택 후 연출", "BeatID", "ChoiceBeats.csv"),
             new Spec("08_상태·플래그", "StateID", "States.csv"),
             new Spec("09_이벤트", "EventID", "Events.csv"),
             new Spec("10_이벤트 트리거", "TriggerID", "EventTriggers.csv"),
@@ -220,9 +221,14 @@ namespace SandPlanet.EditorTools
             HashSet<string> targets = Ids(t, "WorldTargets", "WorldTargetID", errors);
             HashSet<string> quests = Ids(t, "Quests", "QuestID", errors);
             HashSet<string> steps = Ids(t, "QuestSteps", "QuestStepID", errors);
+            HashSet<string> choices = Ids(t, "Choices", "ChoiceID", errors);
             HashSet<string> states = Ids(t, "States", "StateID", errors);
             HashSet<string> events = Ids(t, "Events", "EventID", errors);
-            Ids(t, "Interactions", "InteractionID", errors); Ids(t, "Choices", "ChoiceID", errors); Ids(t, "EventTriggers", "TriggerID", errors); Ids(t, "NpcSchedules", "ScheduleID", errors);
+            Ids(t, "Interactions", "InteractionID", errors);
+            Ids(t, "ChoiceBeats", "BeatID", errors);
+            Ids(t, "EventTriggers", "TriggerID", errors);
+            Ids(t, "NpcSchedules", "ScheduleID", errors);
+
             HashSet<string> choiceSets = new HashSet<string>(t["Choices"].Select(r => G(r, "ChoiceSetID")).Where(x => x.Length > 0), StringComparer.Ordinal);
             Dictionary<string, string> stepOwner = t["QuestSteps"].Where(r => G(r, "QuestStepID").Length > 0).ToDictionary(r => G(r, "QuestStepID"), r => G(r, "QuestID"), StringComparer.Ordinal);
 
@@ -242,24 +248,45 @@ namespace SandPlanet.EditorTools
                 if (s.Length > 0 && (!steps.Contains(s) || !stepOwner.TryGetValue(s, out string owner) || owner != q)) errors.Add($"Interaction {id}: QuestStep 오류 {s}");
                 if (!choiceSets.Contains(set)) errors.Add($"Interaction {id}: ChoiceSet 없음 {set}");
             }
+
             HashSet<string> interactionSets = new HashSet<string>(t["Interactions"].Select(r => G(r, "ChoiceSetID")), StringComparer.Ordinal);
             foreach (Dictionary<string, string> r in t["Choices"])
             {
                 if (interactionSets.Contains(G(r, "ChoiceSetID")) && SandPlanetCsv04.GetInt(r, "TimeCost") < 1) errors.Add($"Choice {G(r, "ChoiceID")}: 일반 Interaction은 최소 1시간");
-                ValidateResult(r, "Result1", states, events, quests, errors); ValidateResult(r, "Result2", states, events, quests, errors); ValidateResult(r, "Result3", states, events, quests, errors);
+                ValidateResult(r, "Result1", states, events, quests, errors);
+                ValidateResult(r, "Result2", states, events, quests, errors);
+                ValidateResult(r, "Result3", states, events, quests, errors);
             }
+
+            HashSet<string> beatOrderKeys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Dictionary<string, string> r in t["ChoiceBeats"])
+            {
+                string beat = G(r, "BeatID");
+                string choice = G(r, "ChoiceID");
+                int order = SandPlanetCsv04.GetInt(r, "BeatOrder");
+                string speakerType = G(r, "SpeakerType");
+                string speaker = G(r, "SpeakerID");
+                if (!choices.Contains(choice)) errors.Add($"ChoiceBeat {beat}: Choice 없음 {choice}");
+                if (order < 1) errors.Add($"ChoiceBeat {beat}: BeatOrder는 1 이상이어야 함");
+                if (!beatOrderKeys.Add(choice + "#" + order.ToString(CultureInfo.InvariantCulture))) errors.Add($"ChoiceBeat {beat}: 같은 ChoiceID에 BeatOrder {order} 중복");
+                if (speakerType == "CHARACTER" && !characters.Contains(speaker)) errors.Add($"ChoiceBeat {beat}: Character 없음 {speaker}");
+            }
+
             foreach (Dictionary<string, string> r in t["Events"])
             {
                 string q = G(r, "QuestID"), s = G(r, "QuestStepID"), set = G(r, "ChoiceSetID");
                 if (q.Length > 0 && !quests.Contains(q)) errors.Add($"Event {G(r, "EventID")}: Quest 없음 {q}");
                 if (s.Length > 0 && !steps.Contains(s)) errors.Add($"Event {G(r, "EventID")}: QuestStep 없음 {s}");
                 if (set.Length > 0 && !choiceSets.Contains(set)) errors.Add($"Event {G(r, "EventID")}: ChoiceSet 없음 {set}");
-                ValidateResult(r, "EventResult1", states, events, quests, errors); ValidateResult(r, "EventResult2", states, events, quests, errors); ValidateResult(r, "EventResult3", states, events, quests, errors);
+                ValidateResult(r, "EventResult1", states, events, quests, errors);
+                ValidateResult(r, "EventResult2", states, events, quests, errors);
+                ValidateResult(r, "EventResult3", states, events, quests, errors);
             }
             foreach (Dictionary<string, string> r in t["EventTriggers"])
             {
                 if (!events.Contains(G(r, "EventID"))) errors.Add($"Trigger {G(r, "TriggerID")}: Event 없음 {G(r, "EventID")}");
-                string loc = G(r, "LocationID"); if (loc.Length > 0 && !locations.Contains(loc)) errors.Add($"Trigger {G(r, "TriggerID")}: Location 없음 {loc}");
+                string loc = G(r, "LocationID");
+                if (loc.Length > 0 && !locations.Contains(loc)) errors.Add($"Trigger {G(r, "TriggerID")}: Location 없음 {loc}");
             }
             foreach (Dictionary<string, string> r in t["NpcSchedules"])
             {
@@ -272,7 +299,11 @@ namespace SandPlanet.EditorTools
         private static HashSet<string> Ids(Dictionary<string, List<Dictionary<string, string>>> tables, string table, string key, List<string> errors)
         {
             HashSet<string> set = new HashSet<string>(StringComparer.Ordinal);
-            foreach (Dictionary<string, string> r in tables[table]) { string id = G(r, key); if (id.Length > 0 && !set.Add(id)) errors.Add("중복 " + key + ": " + id); }
+            foreach (Dictionary<string, string> r in tables[table])
+            {
+                string id = G(r, key);
+                if (id.Length > 0 && !set.Add(id)) errors.Add("중복 " + key + ": " + id);
+            }
             return set;
         }
 
