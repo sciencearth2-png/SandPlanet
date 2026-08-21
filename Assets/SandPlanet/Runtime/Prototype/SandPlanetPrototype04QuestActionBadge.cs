@@ -9,8 +9,8 @@ using UnityEngine.UI;
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Adds player-facing Quest update badges to narrative choice buttons.
-    /// The badge is derived from v1.6 QuestAction metadata, so writers do not need
+    /// Adds player-facing Quest update chips to narrative choice buttons.
+    /// The chip is derived from v1.6 QuestAction metadata, so writers do not need
     /// a separate UI column in Excel.
     /// </summary>
     public sealed class SandPlanetPrototype04QuestActionBadge : MonoBehaviour
@@ -102,23 +102,89 @@ namespace SandPlanet.Prototype
             for (int i = 0; i < count; i++)
             {
                 Button button = buttons[i];
-                Text text = button.GetComponentInChildren<Text>(true);
-                if (text == null) continue;
-
                 QuestActionBadgeBinding binding = button.GetComponent<QuestActionBadgeBinding>();
                 if (binding == null)
-                {
                     binding = button.gameObject.AddComponent<QuestActionBadgeBinding>();
-                    binding.BaseText = text.text;
-                }
 
-                string badge = BuildBadge(rows[i], interactionFlow != null);
-                text.supportRichText = true;
-                text.text = binding.BaseText + badge;
+                BadgeInfo badge = BuildBadge(rows[i], interactionFlow != null);
+                ApplyChip(button, binding, badge);
             }
         }
 
-        private string BuildBadge(SandPlanetFlowNode04 node, bool interaction)
+        private void ApplyChip(Button button, QuestActionBadgeBinding binding, BadgeInfo badge)
+        {
+            if (!badge.Visible)
+            {
+                if (binding.ChipRoot != null) binding.ChipRoot.SetActive(false);
+                return;
+            }
+
+            EnsureChip(button, binding);
+            binding.ChipRoot.SetActive(true);
+            binding.ChipText.text = badge.Label;
+            binding.ChipText.color = badge.Color;
+            binding.ChipImage.color = new Color(badge.Color.r, badge.Color.g, badge.Color.b, 0.20f);
+        }
+
+        private static void EnsureChip(Button button, QuestActionBadgeBinding binding)
+        {
+            if (binding.ChipRoot != null && binding.ChipText != null && binding.ChipImage != null) return;
+
+            Transform existing = button.transform.Find("QuestActionChip");
+            GameObject chip;
+            if (existing != null)
+            {
+                chip = existing.gameObject;
+            }
+            else
+            {
+                chip = new GameObject("QuestActionChip", typeof(RectTransform), typeof(Image));
+                chip.transform.SetParent(button.transform, false);
+            }
+
+            RectTransform rect = chip.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 0.5f);
+            rect.anchorMax = new Vector2(1f, 0.5f);
+            rect.pivot = new Vector2(1f, 0.5f);
+            rect.anchoredPosition = new Vector2(-12f, 0f);
+            rect.sizeDelta = new Vector2(220f, 34f);
+
+            Image image = chip.GetComponent<Image>();
+            image.raycastTarget = false;
+
+            Transform labelTransform = chip.transform.Find("Label");
+            Text label;
+            if (labelTransform != null)
+            {
+                label = labelTransform.GetComponent<Text>();
+            }
+            else
+            {
+                GameObject labelGo = new GameObject("Label", typeof(RectTransform), typeof(Text));
+                labelGo.transform.SetParent(chip.transform, false);
+                label = labelGo.GetComponent<Text>();
+            }
+
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.fontSize = 14;
+            label.fontStyle = FontStyle.Bold;
+            label.alignment = TextAnchor.MiddleCenter;
+            label.raycastTarget = false;
+            label.supportRichText = true;
+
+            RectTransform labelRect = label.rectTransform;
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(8f, 2f);
+            labelRect.offsetMax = new Vector2(-8f, -2f);
+
+            chip.transform.SetAsLastSibling();
+            binding.ChipRoot = chip;
+            binding.ChipImage = image;
+            binding.ChipText = label;
+        }
+
+        private BadgeInfo BuildBadge(SandPlanetFlowNode04 node, bool interaction)
         {
             SandPlanetQuestActionMeta04 meta = null;
             if (interaction)
@@ -127,11 +193,11 @@ namespace SandPlanet.Prototype
                 content.EventNodeMeta.TryGetValue(node, out meta);
 
             if (meta == null || string.IsNullOrEmpty(meta.QuestAction) || string.IsNullOrEmpty(meta.QuestId))
-                return string.Empty;
+                return BadgeInfo.Hidden;
             if (!content.Quests.TryGetValue(meta.QuestId, out SandPlanetQuest04 quest))
-                return string.Empty;
+                return BadgeInfo.Hidden;
             if (!WillQuestActionApply(meta))
-                return string.Empty;
+                return BadgeInfo.Hidden;
 
             string action;
             switch (meta.QuestAction.ToUpperInvariant())
@@ -140,12 +206,11 @@ namespace SandPlanet.Prototype
                 case "SET_QUEST_STEP": action = "퀘스트 진행"; break;
                 case "COMPLETE_QUEST": action = "퀘스트 완료"; break;
                 case "FAIL_QUEST": action = "퀘스트 실패"; break;
-                default: return string.Empty;
+                default: return BadgeInfo.Hidden;
             }
 
             string type = quest.Type == "CHARACTER" ? "CHAR" : quest.Type == "SIDE" ? "SIDE" : "MAIN";
-            string color = QuestColor(quest.Type);
-            return $"    <color={color}><b>[{type} {action}]</b></color>";
+            return new BadgeInfo(true, type + "  " + action, QuestColor(quest.Type));
         }
 
         private bool WillQuestActionApply(SandPlanetQuestActionMeta04 meta)
@@ -174,16 +239,36 @@ namespace SandPlanet.Prototype
             catch { return fallback; }
         }
 
-        private static string QuestColor(string type)
+        private static Color QuestColor(string type)
         {
-            if (string.Equals(type, "MAIN", StringComparison.OrdinalIgnoreCase)) return MainColor;
-            if (string.Equals(type, "CHARACTER", StringComparison.OrdinalIgnoreCase)) return CharacterColor;
-            return SideColor;
+            string hex = string.Equals(type, "MAIN", StringComparison.OrdinalIgnoreCase)
+                ? MainColor
+                : string.Equals(type, "CHARACTER", StringComparison.OrdinalIgnoreCase)
+                    ? CharacterColor
+                    : SideColor;
+            return ColorUtility.TryParseHtmlString(hex, out Color color) ? color : Color.white;
+        }
+
+        private readonly struct BadgeInfo
+        {
+            public static readonly BadgeInfo Hidden = new BadgeInfo(false, string.Empty, Color.clear);
+            public readonly bool Visible;
+            public readonly string Label;
+            public readonly Color Color;
+
+            public BadgeInfo(bool visible, string label, Color color)
+            {
+                Visible = visible;
+                Label = label;
+                Color = color;
+            }
         }
     }
 
     public sealed class QuestActionBadgeBinding : MonoBehaviour
     {
-        public string BaseText;
+        public GameObject ChipRoot;
+        public Image ChipImage;
+        public Text ChipText;
     }
 }
