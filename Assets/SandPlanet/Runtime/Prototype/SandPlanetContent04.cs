@@ -124,6 +124,21 @@ namespace SandPlanet.Prototype.DataDriven
         public bool Active;
     }
 
+    public sealed class SandPlanetChoiceBeat04
+    {
+        public string Id;
+        public string ChoiceId;
+        public int Order;
+        public string PresentationType;
+        public string SpeakerType;
+        public string SpeakerId;
+        public string SpeakerNameOverride;
+        public string BodyText;
+        public string AdvanceText;
+        public string ResultHint;
+        public bool Active;
+    }
+
     public sealed class SandPlanetStateDefinition04
     {
         public string Id;
@@ -200,10 +215,12 @@ namespace SandPlanet.Prototype.DataDriven
         public readonly Dictionary<string, SandPlanetEvent04> Events = new Dictionary<string, SandPlanetEvent04>(StringComparer.Ordinal);
         public readonly List<SandPlanetInteraction04> Interactions = new List<SandPlanetInteraction04>();
         public readonly List<SandPlanetChoice04> Choices = new List<SandPlanetChoice04>();
+        public readonly List<SandPlanetChoiceBeat04> ChoiceBeats = new List<SandPlanetChoiceBeat04>();
         public readonly List<SandPlanetTrigger04> Triggers = new List<SandPlanetTrigger04>();
         public readonly List<SandPlanetSchedule04> Schedules = new List<SandPlanetSchedule04>();
 
         private readonly Dictionary<string, List<SandPlanetChoice04>> choicesBySet = new Dictionary<string, List<SandPlanetChoice04>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<SandPlanetChoiceBeat04>> beatsByChoice = new Dictionary<string, List<SandPlanetChoiceBeat04>>(StringComparer.Ordinal);
 
         public static SandPlanetContent04 Load(IEnumerable<TextAsset> csvAssets)
         {
@@ -222,6 +239,7 @@ namespace SandPlanet.Prototype.DataDriven
             db.LoadQuestSteps(GetRows(byName, "QuestSteps"));
             db.LoadInteractions(GetRows(byName, "Interactions"));
             db.LoadChoices(GetRows(byName, "Choices"));
+            db.LoadChoiceBeats(GetRows(byName, "ChoiceBeats"));
             db.LoadStates(GetRows(byName, "States"));
             db.LoadEvents(GetRows(byName, "Events"));
             db.LoadTriggers(GetRows(byName, "EventTriggers"));
@@ -229,6 +247,8 @@ namespace SandPlanet.Prototype.DataDriven
 
             foreach (IGrouping<string, SandPlanetChoice04> group in db.Choices.Where(c => c.Active).GroupBy(c => c.ChoiceSetId))
                 db.choicesBySet[group.Key] = group.OrderBy(c => c.Order).ToList();
+            foreach (IGrouping<string, SandPlanetChoiceBeat04> group in db.ChoiceBeats.Where(b => b.Active).GroupBy(b => b.ChoiceId))
+                db.beatsByChoice[group.Key] = group.OrderBy(b => b.Order).ThenBy(b => b.Id).ToList();
 
             return db;
         }
@@ -238,6 +258,13 @@ namespace SandPlanet.Prototype.DataDriven
             if (!string.IsNullOrEmpty(choiceSetId) && choicesBySet.TryGetValue(choiceSetId, out List<SandPlanetChoice04> list))
                 return list;
             return Array.Empty<SandPlanetChoice04>();
+        }
+
+        public IReadOnlyList<SandPlanetChoiceBeat04> GetChoiceBeats(string choiceId)
+        {
+            if (!string.IsNullOrEmpty(choiceId) && beatsByChoice.TryGetValue(choiceId, out List<SandPlanetChoiceBeat04> list))
+                return list;
+            return Array.Empty<SandPlanetChoiceBeat04>();
         }
 
         private static List<Dictionary<string, string>> GetRows(Dictionary<string, TextAsset> byName, string name)
@@ -342,6 +369,20 @@ namespace SandPlanet.Prototype.DataDriven
                     SoftStat = G(r, "SoftStat", "NONE"), SoftRequirement = I(r, "SoftRequirement"), HardConditionLogic = G(r, "HardConditionLogic", "AND"),
                     HardCondition1 = C(r, "HardCond1"), HardCondition2 = C(r, "HardCond2"),
                     Result1 = R(r, "Result1"), Result2 = R(r, "Result2"), Result3 = R(r, "Result3"), Active = B(r, "Active", true)
+                });
+            }
+        }
+
+        private void LoadChoiceBeats(List<Dictionary<string, string>> rows)
+        {
+            foreach (Dictionary<string, string> r in rows)
+            {
+                ChoiceBeats.Add(new SandPlanetChoiceBeat04
+                {
+                    Id = G(r, "BeatID"), ChoiceId = G(r, "ChoiceID"), Order = I(r, "BeatOrder"),
+                    PresentationType = G(r, "PresentationType", "DIALOGUE"), SpeakerType = G(r, "SpeakerType", "NONE"),
+                    SpeakerId = G(r, "SpeakerID"), SpeakerNameOverride = G(r, "SpeakerNameOverride"), BodyText = G(r, "BodyText"),
+                    AdvanceText = G(r, "AdvanceText"), ResultHint = G(r, "ResultHint"), Active = B(r, "Active", true)
                 });
             }
         }
