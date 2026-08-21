@@ -9,9 +9,9 @@ using UnityEngine.UI;
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Prototype 0.4 runtime updated for the v1.5 integrated-flow workbook.
+    /// Prototype 0.4 runtime using the v1.6 integrated-flow workbook.
     /// Interaction Flow starts from a player click; Event Flow starts from the world/trigger system.
-    /// Both use the same narrative node renderer and staged-result execution.
+    /// Quest state changes are legal only as explicit Interaction/Event results.
     /// </summary>
     public sealed class SandPlanetPrototype04Controller : MonoBehaviour
     {
@@ -19,6 +19,11 @@ namespace SandPlanet.Prototype
         private const int DayEndHour = 22;
         private const int MaxWillDefault = 5;
         private const int XpPerLevel = 6;
+
+        private const string MainColor = "#F0A24A";
+        private const string CharacterColor = "#69C77C";
+        private const string SideColor = "#F1D784";
+        private const string BasicColor = "#AAB4BE";
 
         [Header("Generated CSV")]
         [SerializeField] private TextAsset[] csvAssets;
@@ -145,7 +150,7 @@ namespace SandPlanet.Prototype
                 questStatus[quest.Id] = "LOCKED";
                 questStep[quest.Id] = string.Empty;
             }
-            Log($"v1.5 CSV 로드: 장소 {content.Locations.Count}, 상호작용 플로우 {content.InteractionFlows.Count}, 이벤트 플로우 {content.EventFlows.Count}");
+            Log($"v1.6 CSV 로드: 장소 {content.Locations.Count}, 상호작용 플로우 {content.InteractionFlows.Count}, 이벤트 플로우 {content.EventFlows.Count}");
         }
 
         private void WireButtons()
@@ -172,7 +177,7 @@ namespace SandPlanet.Prototype
             currentLocationId = locationId;
             SetVisible(locationPanel, true);
             if (locationTitleText != null) locationTitleText.text = location.Name;
-            if (locationHintText != null) locationHintText.text = "사람/사물을 선택하면 현재 가능한 플로우가 표시됩니다.";
+            if (locationHintText != null) locationHintText.text = "사람/사물을 선택하면 현재 가능한 상호작용이 표시됩니다.";
             RefreshTargets();
             ClearDynamic(interactionRoot, interactionTemplate);
             Log("장소 진입: " + location.Name);
@@ -213,24 +218,38 @@ namespace SandPlanet.Prototype
         private string BuildTargetBadge(string targetType, string targetId)
         {
             List<SandPlanetInteraction04> available = GetAvailableInteractions(targetType, targetId);
-            HashSet<string> types = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (SandPlanetInteraction04 interaction in available)
-            {
-                if (string.IsNullOrEmpty(interaction.QuestId)) continue;
-                if (content.Quests.TryGetValue(interaction.QuestId, out SandPlanetQuest04 q)) types.Add(q.Type);
-            }
             List<string> badges = new List<string>();
-            if (types.Contains("MAIN")) badges.Add(" <color=#F0B15E>[MAIN]</color>");
-            if (types.Contains("CHARACTER")) badges.Add(" <color=#74C0FC>[CHAR]</color>");
-            if (types.Contains("SIDE") || types.Contains("WORLD")) badges.Add(" <color=#91C788>[SUB]</color>");
-            if (badges.Count == 0 && available.Any(i => string.IsNullOrEmpty(i.QuestId))) badges.Add(" <color=#AAB4BE>[일상]</color>");
-            return string.Join(string.Empty, badges);
+
+            AddTargetQuestMarker(badges, available, "MAIN", "OFFER", "?", MainColor);
+            AddTargetQuestMarker(badges, available, "MAIN", "PROGRESS", "!", MainColor);
+            AddTargetQuestMarker(badges, available, "CHARACTER", "OFFER", "?", CharacterColor);
+            AddTargetQuestMarker(badges, available, "CHARACTER", "PROGRESS", "!", CharacterColor);
+            AddTargetQuestMarker(badges, available, "SIDE", "OFFER", "?", SideColor);
+            AddTargetQuestMarker(badges, available, "SIDE", "PROGRESS", "!", SideColor);
+
+            if (badges.Count == 0 && available.Any(i => string.IsNullOrEmpty(i.QuestId) || string.Equals(i.QuestRole, "NONE", StringComparison.OrdinalIgnoreCase)))
+                badges.Add($"<color={BasicColor}>[일상]</color>");
+
+            return badges.Count == 0 ? string.Empty : "   " + string.Join(" ", badges);
+        }
+
+        private void AddTargetQuestMarker(List<string> output, List<SandPlanetInteraction04> available, string questType, string role, string marker, string color)
+        {
+            bool exists = available.Any(i =>
+                string.Equals(NormalizeQuestRole(i), role, StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrEmpty(i.QuestId) &&
+                content.Quests.TryGetValue(i.QuestId, out SandPlanetQuest04 q) &&
+                string.Equals(q.Type, questType, StringComparison.OrdinalIgnoreCase));
+            if (exists) output.Add($"<color={color}><b>{marker}</b></color>");
         }
 
         private void SelectTarget(string type, string id)
         {
             List<SandPlanetInteraction04> list = GetAvailableInteractions(type, id)
-                .OrderByDescending(i => i.Priority).ThenBy(i => i.DisplayText).ToList();
+                .OrderByDescending(i => QuestRoleOrder(NormalizeQuestRole(i)))
+                .ThenByDescending(i => i.Priority)
+                .ThenBy(i => i.DisplayText)
+                .ToList();
 
             SandPlanetInteraction04 direct = list.FirstOrDefault(i => i.EntryMode == "DIRECT_CLICK");
             if (direct != null)
@@ -250,19 +269,44 @@ namespace SandPlanet.Prototype
             foreach (SandPlanetInteraction04 interaction in list)
             {
                 SandPlanetInteraction04 captured = interaction;
-                string prefix = interaction.EntryMode == "WORLD_MARKER" ? "◆ " : string.Empty;
+                string worldMarker = interaction.EntryMode == "WORLD_MARKER" ? "◆ " : string.Empty;
                 string badge = InteractionBadge(interaction);
-                CreateButton(interactionTemplate, interactionRoot, prefix + interaction.DisplayText + badge, true, () => BeginInteraction(captured));
+                CreateButton(interactionTemplate, interactionRoot, badge + worldMarker + interaction.DisplayText, true, () => BeginInteraction(captured));
             }
         }
 
         private string InteractionBadge(SandPlanetInteraction04 interaction)
         {
-            if (string.IsNullOrEmpty(interaction.QuestId)) return "  <color=#AAB4BE>[일상]</color>";
+            string role = NormalizeQuestRole(interaction);
+            if (string.IsNullOrEmpty(interaction.QuestId) || role == "NONE")
+                return $"<color={BasicColor}>[일상]</color>  ";
             if (!content.Quests.TryGetValue(interaction.QuestId, out SandPlanetQuest04 q)) return string.Empty;
-            if (q.Type == "MAIN") return "  <color=#F0B15E>[MAIN]</color>";
-            if (q.Type == "CHARACTER") return "  <color=#74C0FC>[CHAR]</color>";
-            return "  <color=#91C788>[SUB]</color>";
+
+            string marker = role == "OFFER" ? "?" : role == "PROGRESS" ? "!" : string.Empty;
+            string typeLabel = q.Type == "CHARACTER" ? "CHAR" : q.Type == "SIDE" ? "SIDE" : "MAIN";
+            string color = QuestColor(q.Type);
+            return $"<color={color}><b>[{typeLabel}{(string.IsNullOrEmpty(marker) ? string.Empty : " " + marker)}]</b></color>  ";
+        }
+
+        private static int QuestRoleOrder(string role)
+        {
+            if (role == "OFFER") return 3;
+            if (role == "PROGRESS") return 2;
+            return 1;
+        }
+
+        private static string NormalizeQuestRole(SandPlanetInteraction04 interaction)
+        {
+            if (interaction == null) return "NONE";
+            if (!string.IsNullOrEmpty(interaction.QuestRole)) return interaction.QuestRole.ToUpperInvariant();
+            return string.IsNullOrEmpty(interaction.QuestId) ? "NONE" : "PROGRESS";
+        }
+
+        private static string QuestColor(string type)
+        {
+            if (string.Equals(type, "MAIN", StringComparison.OrdinalIgnoreCase)) return MainColor;
+            if (string.Equals(type, "CHARACTER", StringComparison.OrdinalIgnoreCase)) return CharacterColor;
+            return SideColor;
         }
 
         private List<SandPlanetInteraction04> GetAvailableInteractions(string targetType, string targetId)
@@ -409,8 +453,10 @@ namespace SandPlanet.Prototype
             if (!string.IsNullOrEmpty(node.EmitEventId)) pendingEffects.EmitEvents.Add(node.EmitEventId);
             if (!string.IsNullOrEmpty(node.ResultTextOverride)) pendingEffects.ResultText = node.ResultTextOverride;
 
-            if (activeEventFlow != null && content.EventNodeMeta.TryGetValue(node, out SandPlanetEventNodeMeta04 meta) && !string.IsNullOrEmpty(meta.QuestAction))
-                pendingEffects.QuestActions.Add(meta);
+            if (activeInteractionFlow != null && content.InteractionNodeMeta.TryGetValue(node, out SandPlanetQuestActionMeta04 interactionMeta) && !string.IsNullOrEmpty(interactionMeta.QuestAction))
+                pendingEffects.QuestActions.Add(interactionMeta);
+            if (activeEventFlow != null && content.EventNodeMeta.TryGetValue(node, out SandPlanetQuestActionMeta04 eventMeta) && !string.IsNullOrEmpty(eventMeta.QuestAction))
+                pendingEffects.QuestActions.Add(eventMeta);
         }
 
         private void FinalizeActiveFlow()
@@ -451,7 +497,7 @@ namespace SandPlanet.Prototype
                 affinity[pair.Key] = Mathf.Clamp(GetAffinity(pair.Key) + pair.Value, 0, 5);
             foreach (SandPlanetStateChange04 change in effects.StateChanges)
                 ApplyStateChange(change);
-            foreach (SandPlanetEventNodeMeta04 action in effects.QuestActions)
+            foreach (SandPlanetQuestActionMeta04 action in effects.QuestActions)
                 ApplyQuestAction(action);
             foreach (string eventId in effects.EmitEvents)
                 FireEvent(eventId);
@@ -466,14 +512,14 @@ namespace SandPlanet.Prototype
                 SetState(change.StateId, change.Value);
         }
 
-        private void ApplyQuestAction(SandPlanetEventNodeMeta04 action)
+        private void ApplyQuestAction(SandPlanetQuestActionMeta04 action)
         {
-            if (action == null) return;
-            switch (action.QuestAction)
+            if (action == null || string.IsNullOrEmpty(action.QuestAction)) return;
+            switch (action.QuestAction.ToUpperInvariant())
             {
                 case "ACTIVATE_QUEST": ActivateQuest(action.QuestId); break;
                 case "COMPLETE_QUEST": CompleteQuest(action.QuestId); break;
-                case "FAIL_QUEST": SetQuestStatus(action.QuestId, "FAILED"); break;
+                case "FAIL_QUEST": FailQuest(action.QuestId); break;
                 case "SET_QUEST_STEP": SetQuestStep(action.QuestId, action.QuestStepId); break;
             }
         }
@@ -550,6 +596,7 @@ namespace SandPlanet.Prototype
             }
             ApplyPendingEffects(local);
             if (!string.IsNullOrEmpty(local.ResultText)) Log(local.ResultText);
+            if (!string.IsNullOrEmpty(currentLocationId)) RefreshTargets();
             RefreshUi();
             ShowQueuedEvent();
         }
@@ -577,17 +624,26 @@ namespace SandPlanet.Prototype
         private void ActivateQuest(string questId)
         {
             if (!content.Quests.TryGetValue(questId, out SandPlanetQuest04 quest)) return;
-            if (GetQuestStatus(questId) == "ACTIVE" || GetQuestStatus(questId) == "COMPLETED") return;
+            if (GetQuestStatus(questId) != "LOCKED") return;
             questStatus[questId] = "ACTIVE";
             questStep[questId] = quest.InitialStepId;
-            Log("Quest 시작: " + quest.Title);
+            Log("Quest 수락: " + quest.Title);
         }
 
         private void CompleteQuest(string questId)
         {
             if (!content.Quests.TryGetValue(questId, out SandPlanetQuest04 quest)) return;
+            if (GetQuestStatus(questId) != "ACTIVE") return;
             questStatus[questId] = "COMPLETED";
             Log("Quest 완료: " + quest.Title);
+        }
+
+        private void FailQuest(string questId)
+        {
+            if (!content.Quests.TryGetValue(questId, out SandPlanetQuest04 quest)) return;
+            if (GetQuestStatus(questId) != "ACTIVE") return;
+            questStatus[questId] = "FAILED";
+            Log("Quest 실패: " + quest.Title);
         }
 
         private void SetQuestStatus(string questId, string status)
@@ -597,8 +653,12 @@ namespace SandPlanet.Prototype
 
         private void SetQuestStep(string questId, string stepId)
         {
-            if (!string.IsNullOrEmpty(questId) && questStatus.ContainsKey(questId) && content.QuestSteps.ContainsKey(stepId))
-                questStep[questId] = stepId;
+            if (string.IsNullOrEmpty(questId) || string.IsNullOrEmpty(stepId)) return;
+            if (GetQuestStatus(questId) != "ACTIVE") return;
+            if (!content.QuestSteps.TryGetValue(stepId, out SandPlanetQuestStep04 step) || step.QuestId != questId) return;
+            questStep[questId] = stepId;
+            if (content.Quests.TryGetValue(questId, out SandPlanetQuest04 quest))
+                Log("Quest 진행: " + quest.Title + " — " + step.Title);
         }
 
         private void ProcessTriggers(string timing)
@@ -619,11 +679,24 @@ namespace SandPlanet.Prototype
             if (i == null || !i.Active) return false;
             if (day < i.OpenDay || day > i.CloseDay || !TimeSlotAllowed(i)) return false;
             if (!RepeatAvailable(i.Id, i.RepeatRule, interactionsUsed, interactionLastDay)) return false;
-            if (!string.IsNullOrEmpty(i.QuestId))
+
+            string role = NormalizeQuestRole(i);
+            if (role == "OFFER")
             {
+                if (string.IsNullOrEmpty(i.QuestId) || GetQuestStatus(i.QuestId) != "LOCKED") return false;
+            }
+            else if (role == "PROGRESS")
+            {
+                if (string.IsNullOrEmpty(i.QuestId) || GetQuestStatus(i.QuestId) != "ACTIVE") return false;
+                if (!string.IsNullOrEmpty(i.QuestStepId) && GetQuestStep(i.QuestId) != i.QuestStepId) return false;
+            }
+            else if (!string.IsNullOrEmpty(i.QuestId))
+            {
+                // Backward-compatible rule for old authored rows without QuestRole.
                 if (GetQuestStatus(i.QuestId) != "ACTIVE") return false;
                 if (!string.IsNullOrEmpty(i.QuestStepId) && GetQuestStep(i.QuestId) != i.QuestStepId) return false;
             }
+
             return EvaluatePair(i.ConditionLogic, i.Condition1, i.Condition2);
         }
 
@@ -845,7 +918,7 @@ namespace SandPlanet.Prototype
 
         private string BuildDay21Summary()
         {
-            return "Excel v1.5 데이터 기준 Day 21 상태\n\n"
+            return "Excel v1.6 데이터 기준 Day 21 상태\n\n"
                    + $"거주지 보존 {GetState("STA_PRESERVE_SETTLEMENT")}\n"
                    + $"오아시스 보존 {GetState("STA_PRESERVE_OASIS")}\n"
                    + $"묘지 보존 {GetState("STA_PRESERVE_GRAVEYARD")}\n"
@@ -866,9 +939,12 @@ namespace SandPlanet.Prototype
                 {
                     string sid = GetQuestStep(q.Id);
                     string tracker = content.QuestSteps.TryGetValue(sid, out SandPlanetQuestStep04 step) ? step.TrackerText : string.Empty;
-                    lines.Add("• " + q.Title + (string.IsNullOrEmpty(tracker) ? string.Empty : " — " + tracker));
+                    string color = QuestColor(q.Type);
+                    string type = q.Type == "CHARACTER" ? "CHAR" : q.Type;
+                    lines.Add($"• <color={color}>[{type}]</color> " + q.Title + (string.IsNullOrEmpty(tracker) ? string.Empty : " — " + tracker));
                 }
                 if (lines.Count == 1) lines.Add("• 없음");
+                questTrackerText.supportRichText = true;
                 questTrackerText.text = string.Join("\n", lines);
             }
             if (logText != null) logText.text = RecentLogText();
@@ -936,7 +1012,7 @@ namespace SandPlanet.Prototype
             public int TechnicalXpDelta;
             public readonly Dictionary<string, int> AffinityDelta = new Dictionary<string, int>(StringComparer.Ordinal);
             public readonly List<SandPlanetStateChange04> StateChanges = new List<SandPlanetStateChange04>();
-            public readonly List<SandPlanetEventNodeMeta04> QuestActions = new List<SandPlanetEventNodeMeta04>();
+            public readonly List<SandPlanetQuestActionMeta04> QuestActions = new List<SandPlanetQuestActionMeta04>();
             public readonly List<string> EmitEvents = new List<string>();
             public string ResultText;
 
