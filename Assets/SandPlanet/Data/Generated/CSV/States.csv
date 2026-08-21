@@ -1,4 +1,4 @@
-StateID,DataType,DefaultValue,Scope,Description,WriterNote
+﻿StateID,DataType,DefaultValue,Scope,Description,WriterNote
 STA_W1_GRAVEYARD_VISITED,BOOL,FALSE,WORLD,묘지를 처음 확인함,기존 샘플 유지.
 STA_W1_MEMORIAL_COMPLETED,BOOL,FALSE,WORLD,추모 완료,묘지 텍스트/NPC 일정 변형.
 STA_W1_OASIS_RISK_KNOWN,BOOL,FALSE,INFO,오아시스 장기 위험을 확인함,EVT_W1_OASIS_RISK_FOUND가 설정.

@@ -1,4 +1,4 @@
-LocationID,Name,SceneKey,Active,WriterNote
+﻿LocationID,Name,SceneKey,Active,WriterNote
 LOC_01_SETTLEMENT,거주지,settlement,TRUE,Week 1~2 허브. 휴식/생활/공동체 행동의 중심.
 LOC_02_SHIP,수송선 외부·정비 구역,ship,TRUE,Week 1~2 허브. 폭풍 전 피난처 준비와 외부 수송선 보존 관련.
 LOC_03_GRAVEYARD,묘지,graveyard,TRUE,Week 1~2 허브. 기억/추모/벤자민 관련.

@@ -1,4 +1,4 @@
-QuestStepID,QuestID,StepOrder,StepTitle,StepBody,TrackerText,ProgressEventID,OnProgressEvent,NextStepID,Active,WriterNote
+﻿QuestStepID,QuestID,StepOrder,StepTitle,StepBody,TrackerText,ProgressEventID,OnProgressEvent,NextStepID,Active,WriterNote
 QSTEP_W1_MAIN_01_AWAKE_01,QST_W1_MAIN_01_AWAKE,1,사고 이후의 시간을 듣는다,샘에게 사고 이후 생존 과정과 현재 공동체의 상태를 듣는다.,샘에게 사고 이후 상황을 듣기,EVT_W1_AWAKE_COMPLETE,COMPLETE_QUEST,,TRUE,Day 1 도입.
 QSTEP_W1_MAIN_02_INVESTIGATION_01,QST_W1_MAIN_02_INVESTIGATION,1,오아시스를 조사한다,"보리치의 관측, 급수 펌프, 수원 중 적절한 경로를 이용해 장기 위험을 확인한다.",오아시스 장기 위험 조사,EVT_W1_OASIS_RISK_FOUND,SET_STEP,QSTEP_W1_MAIN_02_INVESTIGATION_02,TRUE,여러 조사 방법이 같은 Event를 발생.
 QSTEP_W1_MAIN_02_INVESTIGATION_02,QST_W1_MAIN_02_INVESTIGATION,2,결과를 공유한다,확인한 위험을 샘에게 보고한다.,샘에게 조사 결과 보고,EVT_W1_INVEST_REPORT_DONE,COMPLETE_QUEST,,TRUE,보고 자체도 1h 소모.

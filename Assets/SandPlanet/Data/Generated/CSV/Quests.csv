@@ -1,4 +1,4 @@
-QuestID,QuestType,Title,Summary,InitialStepID,TrackerVisible,LogOrder,Active,WriterNote
+﻿QuestID,QuestType,Title,Summary,InitialStepID,TrackerVisible,LogOrder,Active,WriterNote
 QST_W1_MAIN_01_AWAKE,MAIN,내가 잠든 동안,냉동 수면에서 깨어난 제이가 자신이 빠져 있던 시간을 따라잡는다.,QSTEP_W1_MAIN_01_AWAKE_01,TRUE,100,TRUE,GAME_START에서 활성화.
 QST_W1_MAIN_02_INVESTIGATION,MAIN,이곳에서 살아갈 수 있을까,오아시스가 장기적으로 인간이 살아갈 환경인지 조사하고 결과를 공유한다.,QSTEP_W1_MAIN_02_INVESTIGATION_01,TRUE,100,TRUE,Day 3 활성화.
 QST_W1_MAIN_03_DISCLOSURE,MAIN,누가 진실을 알아야 하는가,오아시스의 위험을 공동체 전체에 공개할지 핵심 인물에게만 공유할지 결정한다.,QSTEP_W1_MAIN_03_DISCLOSURE_01,TRUE,100,TRUE,돌이킬 수 없는 선택. 모두 공개 12h / 제한 공개 6h.

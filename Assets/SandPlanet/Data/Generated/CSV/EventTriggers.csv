@@ -1,4 +1,4 @@
-TriggerID,EventID,TriggerTiming,TriggerMomentText,LocationID,DetectorType,DetectorID,ConditionLogic,Cond1Type,Cond1Key,Cond1Operator,Cond1Value,Cond2Type,Cond2Key,Cond2Operator,Cond2Value,RepeatRule,Priority,Active,WriterNote
+﻿TriggerID,EventID,TriggerTiming,TriggerMomentText,LocationID,DetectorType,DetectorID,ConditionLogic,Cond1Type,Cond1Key,Cond1Operator,Cond1Value,Cond2Type,Cond2Key,Cond2Operator,Cond2Value,RepeatRule,Priority,Active,WriterNote
 TRG_W1_GAME_START,EVT_W1_GAME_START,GAME_START,새 게임 시작 직후,,SYSTEM,,,,,,,,,,,ONCE,200,TRUE,
 TRG_ACT_W1_BEN_NAMES,EVT_ACT_W1_BEN_NAMES,DAY_START,Day 2 시작,,TIME,,AND,DAY,,EQ,2,,,,,ONCE,80,TRUE,Week1 선택 퀘스트를 Day2에 자연스럽게 개방.
 TRG_ACT_W1_SAM_BURDEN,EVT_ACT_W1_SAM_BURDEN,DAY_START,Day 2 시작,,TIME,,AND,DAY,,EQ,2,,,,,ONCE,80,TRUE,Week1 선택 퀘스트를 Day2에 자연스럽게 개방.

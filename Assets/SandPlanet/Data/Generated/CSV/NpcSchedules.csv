@@ -1,4 +1,4 @@
-ScheduleID,CharacterID,OpenDay,CloseDay,Morning,Afternoon,Evening,LocationID,ScheduleConditionLogic,ScheduleCond1Type,ScheduleCond1Key,ScheduleCond1Operator,ScheduleCond1Value,ScheduleCond2Type,ScheduleCond2Key,ScheduleCond2Operator,ScheduleCond2Value,Priority,Active,WriterNote
+﻿ScheduleID,CharacterID,OpenDay,CloseDay,Morning,Afternoon,Evening,LocationID,ScheduleConditionLogic,ScheduleCond1Type,ScheduleCond1Key,ScheduleCond1Operator,ScheduleCond1Value,ScheduleCond2Type,ScheduleCond2Key,ScheduleCond2Operator,ScheduleCond2Value,Priority,Active,WriterNote
 SCH_BEN_W1_GRAVE_EVE,CHA_BENJAMIN,1,6,FALSE,FALSE,TRUE,LOC_03_GRAVEYARD,AND,STATE,STA_W1_MEMORIAL_COMPLETED,EQ,TRUE,AFFINITY,CHA_BENJAMIN,GE,1,100,TRUE,추모 완료 + 호감도 1 이상이면 저녁 묘지 방문.
 SCH_W3_SAM_COMMAND,CHA_SAM,15,21,TRUE,TRUE,TRUE,LOC_05_COMMAND,,,,,,,,,,100,TRUE,Week3 샘은 지휘·항해 구역 중심.
 SCH_W3_JINA_SUPPLY,CHA_JINA,15,21,TRUE,TRUE,TRUE,LOC_06_SUPPLY,,,,,,,,,,100,TRUE,Week3 지나 보급·생명유지 담당.

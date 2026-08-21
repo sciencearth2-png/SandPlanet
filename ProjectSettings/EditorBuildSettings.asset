@@ -17,6 +17,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/SandPlanet_Prototype_03.unity
     guid: 42efad68c54de3e4dafba6ac53413b89
+  - enabled: 1
+    path: Assets/Scenes/SandPlanet_Prototype_04.unity
+    guid: c101c7e0472583c4b9582de5dbfdf808
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

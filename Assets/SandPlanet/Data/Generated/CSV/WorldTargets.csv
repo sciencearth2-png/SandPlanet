@@ -1,4 +1,4 @@
-WorldTargetID,Name,LocationID,TargetCategory,SceneObjectKey,Clickable,Active,WriterNote
+﻿WorldTargetID,Name,LocationID,TargetCategory,SceneObjectKey,Clickable,Active,WriterNote
 OBJ_03_GRAVE_MEMORIAL,추모비,LOC_03_GRAVEYARD,LANDMARK,grave_memorial,TRUE,TRUE,묘지 대표 상호작용 대상.
 OBJ_04_OASIS_PUMP,급수 펌프,LOC_04_OASIS,DEVICE,oasis_pump,TRUE,TRUE,오아시스 수원/보존/조사 관련.
 OBJ_04_OASIS_WATER,오아시스 수원,LOC_04_OASIS,AREA,oasis_water,TRUE,TRUE,수질 조사와 장기 정착 가능성 판단.
