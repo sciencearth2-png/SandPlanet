@@ -14,7 +14,7 @@ using UnityEngine;
 namespace SandPlanet.EditorTools
 {
     /// <summary>
-    /// SandPlanet_Master.xlsx (v1.5 integrated flows) -> runtime CSV.
+    /// SandPlanet_Master.xlsx (v1.6 integrated flows + explicit QuestRole/QuestAction) -> runtime CSV.
     /// Reads XLSX ZIP/XML directly so the Unity project has no Excel package dependency.
     /// </summary>
     public static class SandPlanetSpreadsheetExporter04
@@ -44,19 +44,19 @@ namespace SandPlanet.EditorTools
             new Spec("10_NPC 일정", "ScheduleID", "NpcSchedules.csv")
         };
 
-        [MenuItem("Tools/SandPlanet/Data v1.5/Export Master Excel to CSV")]
+        [MenuItem("Tools/SandPlanet/Data v1.6/Export Master Excel to CSV")]
         public static void ExportMenu() => Export(true);
 
-        [MenuItem("Tools/SandPlanet/Data v1.5/Validate Generated CSV")]
+        [MenuItem("Tools/SandPlanet/Data v1.6/Validate Generated CSV")]
         public static void ValidateMenu()
         {
             List<string> errors = ValidateFolder();
-            string body = errors.Count == 0 ? "v1.5 CSV 참조 검증 통과" : string.Join("\n", errors.Take(35));
-            if (errors.Count > 35) body += $"\n... +{errors.Count - 35}";
-            EditorUtility.DisplayDialog("SandPlanet Data v1.5", body, "확인");
+            string body = errors.Count == 0 ? "v1.6 CSV 참조 검증 통과" : string.Join("\n", errors.Take(40));
+            if (errors.Count > 40) body += $"\n... +{errors.Count - 40}";
+            EditorUtility.DisplayDialog("SandPlanet Data v1.6", body, "확인");
         }
 
-        // Keep the familiar 0.4 menu path as a compatibility alias during the transition.
+        // Compatibility aliases while the scene still has the 0.4 prototype name.
         [MenuItem("Tools/SandPlanet/Data 0.4/Export Master Excel to CSV")]
         private static void ExportLegacyMenu() => Export(true);
 
@@ -67,8 +67,8 @@ namespace SandPlanet.EditorTools
         {
             if (!File.Exists(MasterWorkbookPath))
             {
-                if (showDialog) EditorUtility.DisplayDialog("SandPlanet Data v1.5", "Master Excel이 없습니다.\n" + MasterWorkbookPath, "확인");
-                Debug.LogWarning("[SandPlanet v1.5] Master workbook missing: " + MasterWorkbookPath);
+                if (showDialog) EditorUtility.DisplayDialog("SandPlanet Data v1.6", "Master Excel이 없습니다.\n" + MasterWorkbookPath, "확인");
+                Debug.LogWarning("[SandPlanet v1.6] Master workbook missing: " + MasterWorkbookPath);
                 return false;
             }
 
@@ -83,7 +83,7 @@ namespace SandPlanet.EditorTools
                     foreach (Spec spec in Specs)
                     {
                         if (!sheets.TryGetValue(spec.Sheet, out string xmlPath))
-                            throw new InvalidDataException("시트를 찾을 수 없음: " + spec.Sheet + " (v1.5 Master인지 확인하세요)");
+                            throw new InvalidDataException("시트를 찾을 수 없음: " + spec.Sheet + " (v1.6 Master인지 확인하세요)");
                         ZipArchiveEntry entry = archive.GetEntry(xmlPath);
                         if (entry == null) throw new InvalidDataException("Worksheet XML 없음: " + xmlPath);
                         List<string> csv = ExtractCsv(entry, shared, spec.FirstKey);
@@ -92,28 +92,28 @@ namespace SandPlanet.EditorTools
                 }
 
                 // Existing 0.4 scenes still serialize these legacy TextAsset slots.
-                // v1.5 no longer uses them, but harmless placeholders avoid forcing scene regeneration.
+                // v1.6 no longer uses them, but harmless placeholders avoid forcing scene regeneration.
                 File.WriteAllText(Path.Combine(CsvFolderPath, "Choices.csv"), "LegacyUnused\n", new UTF8Encoding(true));
                 File.WriteAllText(Path.Combine(CsvFolderPath, "ChoiceBeats.csv"), "LegacyUnused\n", new UTF8Encoding(true));
 
                 AssetDatabase.Refresh();
                 List<string> errors = ValidateFolder();
-                if (errors.Count == 0) Debug.Log($"[SandPlanet v1.5] Excel → CSV 완료: {Specs.Length} sheets");
-                else foreach (string error in errors) Debug.LogError("[SandPlanet v1.5 Data] " + error);
+                if (errors.Count == 0) Debug.Log($"[SandPlanet v1.6] Excel → CSV 완료: {Specs.Length} sheets");
+                else foreach (string error in errors) Debug.LogError("[SandPlanet v1.6 Data] " + error);
 
                 if (showDialog)
                 {
                     string message = errors.Count == 0
-                        ? $"Excel → CSV 완료\n{Specs.Length}개 시트\nInteraction/Event Flow 참조 검증 통과"
+                        ? $"Excel → CSV 완료\n{Specs.Length}개 시트\nQuestRole / Interaction / Event Flow 참조 검증 통과"
                         : $"CSV 생성 완료 / 검증 오류 {errors.Count}개\nConsole을 확인하세요.";
-                    EditorUtility.DisplayDialog("SandPlanet Data v1.5", message, "확인");
+                    EditorUtility.DisplayDialog("SandPlanet Data v1.6", message, "확인");
                 }
                 return errors.Count == 0;
             }
             catch (Exception ex)
             {
                 Debug.LogException(ex);
-                if (showDialog) EditorUtility.DisplayDialog("SandPlanet Data v1.5", "Excel → CSV 실패\n" + ex.Message, "확인");
+                if (showDialog) EditorUtility.DisplayDialog("SandPlanet Data v1.6", "Excel → CSV 실패\n" + ex.Message, "확인");
                 return false;
             }
         }
@@ -262,8 +262,9 @@ namespace SandPlanet.EditorTools
             foreach (Dictionary<string, string> r in t["WorldTargets"])
                 if (!locations.Contains(G(r, "LocationID"))) errors.Add($"WorldTarget {G(r, "WorldTargetID")}: Location 없음");
 
+            ValidateCharacterQuestPolicy(t["Quests"], errors);
             ValidateInteractionFlows(t["Interactions"], characters, targets, quests, steps, stepOwner, states, events, errors);
-            ValidateEventFlows(t["Events"], quests, steps, states, events, errors);
+            ValidateEventFlows(t["Events"], quests, steps, stepOwner, states, events, errors);
 
             foreach (Dictionary<string, string> r in t["EventTriggers"])
             {
@@ -280,6 +281,17 @@ namespace SandPlanet.EditorTools
             return errors;
         }
 
+        private static void ValidateCharacterQuestPolicy(List<Dictionary<string, string>> quests, List<string> errors)
+        {
+            foreach (Dictionary<string, string> q in quests)
+            {
+                if (!string.Equals(G(q, "QuestType"), "CHARACTER", StringComparison.OrdinalIgnoreCase)) continue;
+                string id = G(q, "QuestID");
+                if (!id.StartsWith("QST_CHAR_", StringComparison.Ordinal))
+                    errors.Add($"Character Quest {id}: v1.6 장기 퀘스트 ID는 QST_CHAR_... 형식을 권장/요구합니다.");
+            }
+        }
+
         private static void ValidateInteractionFlows(
             List<Dictionary<string, string>> rows, HashSet<string> characters, HashSet<string> targets,
             HashSet<string> quests, HashSet<string> steps, Dictionary<string, string> stepOwner,
@@ -288,6 +300,21 @@ namespace SandPlanet.EditorTools
             Dictionary<string, HashSet<string>> nodes = rows.GroupBy(r => G(r, "FlowID"))
                 .ToDictionary(g => g.Key, g => new HashSet<string>(g.Select(r => G(r, "NodeID")).Where(x => x.Length > 0), StringComparer.Ordinal), StringComparer.Ordinal);
             HashSet<string> rowKeys = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (IGrouping<string, Dictionary<string, string>> group in rows.GroupBy(r => G(r, "FlowID")))
+            {
+                Dictionary<string, string> first = group.First();
+                string flow = group.Key;
+                string role = G(first, "QuestRole").ToUpperInvariant();
+                string q = G(first, "QuestID");
+                if (!(role == "NONE" || role == "OFFER" || role == "PROGRESS"))
+                    errors.Add($"Flow {flow}: QuestRole은 NONE/OFFER/PROGRESS 중 하나여야 함 ({role})");
+                if ((role == "OFFER" || role == "PROGRESS") && q.Length == 0)
+                    errors.Add($"Flow {flow}: QuestRole {role}에는 QuestID가 필요함");
+                if (role == "OFFER" && !group.Any(r => string.Equals(G(r, "QuestAction"), "ACTIVATE_QUEST", StringComparison.OrdinalIgnoreCase)))
+                    errors.Add($"Flow {flow}: OFFER 플로우에는 ACTIVATE_QUEST 결과가 최소 1개 필요함");
+            }
+
             foreach (Dictionary<string, string> r in rows)
             {
                 string flow = G(r, "FlowID"), node = G(r, "NodeID"), choice = G(r, "ChoiceID"), target = G(r, "TargetID"), q = G(r, "QuestID"), step = G(r, "QuestStepID");
@@ -305,14 +332,30 @@ namespace SandPlanet.EditorTools
                 ValidateStateSlot(r, "State2", states, "Flow " + flow + "/" + node, errors);
                 ValidateAffinity(r, "Affinity1CharacterID", characters, "Flow " + flow + "/" + node, errors);
                 ValidateAffinity(r, "Affinity2CharacterID", characters, "Flow " + flow + "/" + node, errors);
+
+                string action = G(r, "QuestAction").ToUpperInvariant();
+                string actionStep = G(r, "QuestActionStepID");
+                if (action.Length > 0 && action != "NONE")
+                {
+                    if (!quests.Contains(q)) errors.Add($"Flow {flow}/{node}: QuestAction 대상 Quest 없음 {q}");
+                    if (action == "SET_QUEST_STEP")
+                    {
+                        if (!steps.Contains(actionStep)) errors.Add($"Flow {flow}/{node}: 처리 단계 없음 {actionStep}");
+                        else if (!stepOwner.TryGetValue(actionStep, out string actionOwner) || actionOwner != q)
+                            errors.Add($"Flow {flow}/{node}: 처리 단계 {actionStep}가 Quest {q} 소속이 아님");
+                    }
+                }
+
                 if (choice.Length > 0 && SandPlanetCsv04.GetInt(r, "TimeCost") < 1)
                     errors.Add($"Flow {flow}/{choice}: 플레이어 선택 TimeCost는 최소 1시간");
+                if (action == "ACTIVATE_QUEST" && SandPlanetCsv04.GetInt(r, "TimeCost") < 1)
+                    errors.Add($"Flow {flow}/{node}: Quest 수락 상호작용은 최소 1시간");
             }
         }
 
         private static void ValidateEventFlows(
             List<Dictionary<string, string>> rows, HashSet<string> quests, HashSet<string> steps,
-            HashSet<string> states, HashSet<string> events, List<string> errors)
+            Dictionary<string, string> stepOwner, HashSet<string> states, HashSet<string> events, List<string> errors)
         {
             Dictionary<string, HashSet<string>> nodes = rows.GroupBy(r => G(r, "EventID"))
                 .ToDictionary(g => g.Key, g => new HashSet<string>(g.Select(r => G(r, "NodeID")).Where(x => x.Length > 0), StringComparer.Ordinal), StringComparer.Ordinal);
@@ -329,9 +372,13 @@ namespace SandPlanet.EditorTools
                 ValidateStateSlot(r, "State1", states, "Event " + e + "/" + node, errors);
                 ValidateStateSlot(r, "State2", states, "Event " + e + "/" + node, errors);
                 ValidateStateSlot(r, "State3", states, "Event " + e + "/" + node, errors);
-                string action = G(r, "QuestAction"), q = G(r, "QuestID"), step = G(r, "QuestStepID");
-                if (action.Length > 0 && !quests.Contains(q)) errors.Add($"Event {e}/{node}: QuestAction 대상 없음 {q}");
-                if (action == "SET_QUEST_STEP" && !steps.Contains(step)) errors.Add($"Event {e}/{node}: QuestStep 없음 {step}");
+                string action = G(r, "QuestAction").ToUpperInvariant(), q = G(r, "QuestID"), step = G(r, "QuestStepID");
+                if (action.Length > 0 && action != "NONE" && !quests.Contains(q)) errors.Add($"Event {e}/{node}: QuestAction 대상 없음 {q}");
+                if (action == "SET_QUEST_STEP")
+                {
+                    if (!steps.Contains(step)) errors.Add($"Event {e}/{node}: QuestStep 없음 {step}");
+                    else if (!stepOwner.TryGetValue(step, out string owner) || owner != q) errors.Add($"Event {e}/{node}: QuestStep {step}가 Quest {q} 소속이 아님");
+                }
             }
         }
 
