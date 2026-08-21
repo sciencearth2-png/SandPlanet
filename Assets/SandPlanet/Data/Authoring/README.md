@@ -1,14 +1,21 @@
 # SandPlanet Authoring Master
 
-Prototype 0.4 expects the writer-facing master workbook at:
+Prototype 0.4 now reads the **v1.5 integrated-flow workbook** from:
 
 `Assets/SandPlanet/Data/Authoring/SandPlanet_Master.xlsx`
 
-Current approved workbook: **v1.3 StateIDs**
+Current development workbook structure: **v1.5 Integrated Flows**
 
-SHA-256:
-`7ad51336d636295f0cc8420fc8f3c88c9b48fc578a863311dcb0222c23b4853b`
+Key authoring change:
+- `06_상호작용 플로우` combines the old interaction entry / time-cost choice / post-choice presentation sheets.
+- `08_이벤트 플로우` treats Events as world-driven narrative flows, including choices and system results.
+- `09_이벤트 트리거` remains responsible only for when an Event starts.
 
-Saving that XLSX while the Unity project is open triggers the 0.4 Excel → CSV exporter automatically on reimport. Manual export/validation is available under `Tools > SandPlanet > Data 0.4`.
+Saving/replacing the XLSX while Unity is open triggers Excel → CSV export automatically on reimport.
+Manual export/validation is available under:
 
-The generated CSV files are committed under `Assets/SandPlanet/Data/Generated/CSV` so the current prototype content remains inspectable even before the Master workbook is present locally.
+`Tools > SandPlanet > Data v1.5`
+
+The familiar `Tools > SandPlanet > Data 0.4` menu is kept as a compatibility alias.
+
+The exporter writes the v1.5 flow data into the existing `Interactions.csv` and `Events.csv` asset paths so an already-generated Prototype 0.4 scene can keep its serialized TextAsset references. Legacy `Choices.csv` and `ChoiceBeats.csv` remain as harmless placeholders and are no longer read by runtime content logic.
