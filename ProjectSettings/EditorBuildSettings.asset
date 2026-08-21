@@ -8,6 +8,15 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/Scenes/SandPlanet_Prototype_01.unity
+    guid: 7a49b4408583a9842b804a43111d1d98
+  - enabled: 1
+    path: Assets/Scenes/SandPlanet_Prototype_02.unity
+    guid: 165fb199f103f264f9f96a309f01a639
+  - enabled: 1
+    path: Assets/Scenes/SandPlanet_Prototype_03.unity
+    guid: 42efad68c54de3e4dafba6ac53413b89
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
