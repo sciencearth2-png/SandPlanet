@@ -11,7 +11,7 @@ namespace SandPlanet.Prototype
 {
     /// <summary>
     /// Prototype 0.4 convenience/UI layer.
-    /// It intentionally leaves the CSV-driven game controller unchanged.
+    /// Keeps the CSV-driven controller focused on rules while improving HUD/readability.
     /// </summary>
     public sealed class SandPlanetPrototype04UxEnhancer : MonoBehaviour
     {
@@ -36,10 +36,10 @@ namespace SandPlanet.Prototype
         private FieldInfo modalBusyField;
 
         private MethodInfo isInteractionAvailableMethod;
-        private MethodInfo closeModalMethod;
         private MethodInfo closeLocationMethod;
         private MethodInfo getQuestStatusMethod;
         private MethodInfo getCharacterLocationMethod;
+        private MethodInfo handleEscapeFromUxMethod;
 
         private Canvas canvas;
         private Text hudText;
@@ -52,7 +52,12 @@ namespace SandPlanet.Prototype
         private string selectedTargetType;
         private string selectedTargetId;
         private string lastLocationId;
-        private float nextRefreshTime;
+
+        private ProgressBar timeBar;
+        private ProgressBar willBar;
+        private ProgressBar personalBar;
+        private ProgressBar socialBar;
+        private ProgressBar technicalBar;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -70,7 +75,6 @@ namespace SandPlanet.Prototype
                 enabled = false;
                 return;
             }
-
             controllerType = controller.GetType();
             CacheReflection();
         }
@@ -93,7 +97,14 @@ namespace SandPlanet.Prototype
 
             RestyleHudAndPanels();
             CreateContextCard();
+            CreateProgressBars();
+            Canvas.willRenderCanvases += RefreshBeforeRender;
             RefreshAll(true);
+        }
+
+        private void OnDestroy()
+        {
+            Canvas.willRenderCanvases -= RefreshBeforeRender;
         }
 
         private void Update()
@@ -105,10 +116,15 @@ namespace SandPlanet.Prototype
         private void LateUpdate()
         {
             RefreshHud();
+            RefreshProgressBars();
+        }
 
-            if (Time.unscaledTime < nextRefreshTime) return;
-            nextRefreshTime = Time.unscaledTime + 0.08f;
+        private void RefreshBeforeRender()
+        {
+            // Target buttons are created by the controller in the same frame as the location click.
+            // Updating here guarantees [MAIN]/[CHAR]/[SUB]/[일상] is already present on the first rendered frame.
             RefreshAll(false);
+            RefreshProgressBars();
         }
 
         private void CacheReflection()
@@ -128,10 +144,10 @@ namespace SandPlanet.Prototype
             modalBusyField = controllerType.GetField("modalBusy", PrivateInstance);
 
             isInteractionAvailableMethod = controllerType.GetMethod("IsInteractionAvailable", PrivateInstance);
-            closeModalMethod = controllerType.GetMethod("CloseModal", PrivateInstance);
             closeLocationMethod = controllerType.GetMethod("CloseLocation", PrivateInstance);
             getQuestStatusMethod = controllerType.GetMethod("GetQuestStatus", PrivateInstance);
             getCharacterLocationMethod = controllerType.GetMethod("GetCharacterLocation", PrivateInstance);
+            handleEscapeFromUxMethod = controllerType.GetMethod("HandleEscapeFromUx", PrivateInstance);
         }
 
         private void RestyleHudAndPanels()
@@ -143,7 +159,7 @@ namespace SandPlanet.Prototype
                 hudPanel.anchorMax = new Vector2(1f, 1f);
                 hudPanel.pivot = new Vector2(.5f, 1f);
                 hudPanel.anchoredPosition = Vector2.zero;
-                hudPanel.sizeDelta = new Vector2(0f, 104f);
+                hudPanel.sizeDelta = new Vector2(0f, 146f);
             }
 
             if (hudText != null)
@@ -151,11 +167,11 @@ namespace SandPlanet.Prototype
                 RectTransform r = hudText.rectTransform;
                 r.anchorMin = Vector2.zero;
                 r.anchorMax = Vector2.one;
-                r.offsetMin = new Vector2(18f, 8f);
+                r.offsetMin = new Vector2(18f, 48f);
                 r.offsetMax = new Vector2(-570f, -8f);
-                hudText.fontSize = 19;
+                hudText.fontSize = 18;
                 hudText.alignment = TextAnchor.MiddleLeft;
-                hudText.lineSpacing = 1.05f;
+                hudText.lineSpacing = 1.02f;
                 hudText.supportRichText = true;
             }
 
@@ -176,13 +192,13 @@ namespace SandPlanet.Prototype
 
             RectTransform quest = GetRect("QuestTrackerPanel");
             if (quest != null)
-                quest.anchoredPosition = new Vector2(16f, -118f);
+                quest.anchoredPosition = new Vector2(16f, -158f);
 
             RectTransform location = GetRect("LocationPanel");
             if (location != null)
             {
                 location.anchorMin = new Vector2(.53f, .06f);
-                location.anchorMax = new Vector2(.99f, .88f);
+                location.anchorMax = new Vector2(.99f, .84f);
             }
         }
 
@@ -200,7 +216,7 @@ namespace SandPlanet.Prototype
             RectTransform r = card.GetComponent<RectTransform>();
             r.anchorMin = r.anchorMax = r.pivot = Vector2.one;
             r.anchoredPosition = new Vector2(-198f, -13f);
-            r.sizeDelta = new Vector2(350f, 78f);
+            r.sizeDelta = new Vector2(350f, 86f);
             Image image = card.GetComponent<Image>();
             image.color = new Color(.07f, .085f, .10f, .96f);
             image.raycastTarget = false;
@@ -219,6 +235,94 @@ namespace SandPlanet.Prototype
             tr.anchorMax = Vector2.one;
             tr.offsetMin = new Vector2(12f, 7f);
             tr.offsetMax = new Vector2(-12f, -7f);
+        }
+
+        private void CreateProgressBars()
+        {
+            Transform hudPanel = FindChildRecursive(canvas.transform, "HUDPanel");
+            if (hudPanel == null) return;
+
+            Transform existing = FindChildRecursive(hudPanel, "UX04_ProgressBars");
+            if (existing != null)
+            {
+                ProgressBar[] found = existing.GetComponentsInChildren<ProgressBar>(true);
+                foreach (ProgressBar bar in found)
+                {
+                    if (bar.name.Contains("Time")) timeBar = bar;
+                    else if (bar.name.Contains("Will")) willBar = bar;
+                    else if (bar.name.Contains("Personal")) personalBar = bar;
+                    else if (bar.name.Contains("Social")) socialBar = bar;
+                    else if (bar.name.Contains("Technical")) technicalBar = bar;
+                }
+                return;
+            }
+
+            GameObject holder = new GameObject("UX04_ProgressBars", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            holder.transform.SetParent(hudPanel, false);
+            RectTransform hr = holder.GetComponent<RectTransform>();
+            hr.anchorMin = new Vector2(0f, 0f);
+            hr.anchorMax = new Vector2(1f, 0f);
+            hr.pivot = new Vector2(.5f, 0f);
+            hr.offsetMin = new Vector2(18f, 9f);
+            hr.offsetMax = new Vector2(-570f, 39f);
+            HorizontalLayoutGroup layout = holder.GetComponent<HorizontalLayoutGroup>();
+            layout.spacing = 10f;
+            layout.childAlignment = TextAnchor.MiddleLeft;
+            layout.childControlWidth = true;
+            layout.childForceExpandWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandHeight = true;
+
+            timeBar = CreateProgressBar(holder.transform, "Progress_Time", new Color(.82f, .56f, .25f));
+            willBar = CreateProgressBar(holder.transform, "Progress_Will", new Color(.76f, .36f, .31f));
+            personalBar = CreateProgressBar(holder.transform, "Progress_Personal", new Color(.70f, .40f, .50f));
+            socialBar = CreateProgressBar(holder.transform, "Progress_Social", new Color(.34f, .66f, .46f));
+            technicalBar = CreateProgressBar(holder.transform, "Progress_Technical", new Color(.33f, .55f, .79f));
+        }
+
+        private static ProgressBar CreateProgressBar(Transform parent, string name, Color fillColor)
+        {
+            GameObject root = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(LayoutElement), typeof(ProgressBar));
+            root.transform.SetParent(parent, false);
+            root.GetComponent<Image>().color = new Color(.13f, .15f, .17f, 1f);
+            LayoutElement le = root.GetComponent<LayoutElement>();
+            le.minWidth = 130f;
+            le.preferredHeight = 28f;
+            le.flexibleWidth = 1f;
+
+            GameObject fillGo = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+            fillGo.transform.SetParent(root.transform, false);
+            Image fill = fillGo.GetComponent<Image>();
+            fill.color = fillColor;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = 0;
+            fill.fillAmount = 0f;
+            fill.raycastTarget = false;
+            RectTransform fr = fill.rectTransform;
+            fr.anchorMin = Vector2.zero;
+            fr.anchorMax = Vector2.one;
+            fr.offsetMin = Vector2.zero;
+            fr.offsetMax = Vector2.zero;
+
+            GameObject labelGo = new GameObject("Label", typeof(RectTransform), typeof(Text));
+            labelGo.transform.SetParent(root.transform, false);
+            Text label = labelGo.GetComponent<Text>();
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.fontSize = 13;
+            label.color = Color.white;
+            label.alignment = TextAnchor.MiddleCenter;
+            label.raycastTarget = false;
+            RectTransform lr = label.rectTransform;
+            lr.anchorMin = Vector2.zero;
+            lr.anchorMax = Vector2.one;
+            lr.offsetMin = new Vector2(5f, 1f);
+            lr.offsetMax = new Vector2(-5f, -1f);
+
+            ProgressBar bar = root.GetComponent<ProgressBar>();
+            bar.Fill = fill;
+            bar.Label = label;
+            return bar;
         }
 
         private void RefreshAll(bool force)
@@ -252,9 +356,26 @@ namespace SandPlanet.Prototype
 
             hudText.text =
                 $"DAY {day:00} / 21     {hour:00}:00     의지 {GetInt(willField)}/{GetInt(maxWillField)}     시간대 {slot}     <color=#B7C2CC>{world}</color>\n" +
-                $"개인 Lv{GetInt(personalLevelField)}  {GetInt(personalXpField)}/6        " +
-                $"대인 Lv{GetInt(socialLevelField)}  {GetInt(socialXpField)}/6        " +
-                $"기술 Lv{GetInt(technicalLevelField)}  {GetInt(technicalXpField)}/6        <color=#9AA6B2>6XP → 즉시 Lv +1</color>";
+                $"개인 Lv{GetInt(personalLevelField)}        대인 Lv{GetInt(socialLevelField)}        기술 Lv{GetInt(technicalLevelField)}        <color=#9AA6B2>각 6XP → 즉시 Lv +1</color>";
+        }
+
+        private void RefreshProgressBars()
+        {
+            int hour = GetInt(hourField);
+            int will = GetInt(willField);
+            int maxWill = Mathf.Max(1, GetInt(maxWillField));
+            SetProgress(timeBar, Mathf.InverseLerp(8f, 22f, hour), $"시간 {hour:00}:00");
+            SetProgress(willBar, (float)will / maxWill, $"의지 {will}/{maxWill}");
+            SetProgress(personalBar, GetInt(personalXpField) / 6f, $"개인 XP {GetInt(personalXpField)}/6");
+            SetProgress(socialBar, GetInt(socialXpField) / 6f, $"대인 XP {GetInt(socialXpField)}/6");
+            SetProgress(technicalBar, GetInt(technicalXpField) / 6f, $"기술 XP {GetInt(technicalXpField)}/6");
+        }
+
+        private static void SetProgress(ProgressBar bar, float value, string label)
+        {
+            if (bar == null) return;
+            if (bar.Fill != null) bar.Fill.fillAmount = Mathf.Clamp01(value);
+            if (bar.Label != null) bar.Label.text = label;
         }
 
         private void RefreshTargetBadges(string locationId)
@@ -429,9 +550,9 @@ namespace SandPlanet.Prototype
             bool modalBusy = modalBusyField != null && (bool)modalBusyField.GetValue(controller);
             if (modalBusy)
             {
-                // Forced Event choices deliberately have a disabled Cancel button. Do not let ESC bypass them.
+                // Before a forced Event choice is made, ESC must not bypass the decision.
                 if (IsForcedEventChoice()) return;
-                if (closeModalMethod != null) closeModalMethod.Invoke(controller, null);
+                if (handleEscapeFromUxMethod != null) handleEscapeFromUxMethod.Invoke(controller, null);
                 return;
             }
 
@@ -539,5 +660,11 @@ namespace SandPlanet.Prototype
         public string TargetType;
         public string TargetId;
         public string TargetName;
+    }
+
+    public sealed class ProgressBar : MonoBehaviour
+    {
+        public Image Fill;
+        public Text Label;
     }
 }
