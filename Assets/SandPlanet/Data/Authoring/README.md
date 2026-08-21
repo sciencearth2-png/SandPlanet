@@ -58,3 +58,14 @@ Manual export/validation is available under:
 The familiar `Tools > SandPlanet > Data 0.4` menu is kept as a compatibility alias.
 
 The exporter writes v1.6 flow data into the existing `Interactions.csv` and `Events.csv` asset paths so an already-generated Prototype 0.4 scene can keep its serialized TextAsset references. Legacy `Choices.csv` and `ChoiceBeats.csv` remain as harmless placeholders and are no longer read by runtime content logic.
+
+## Safe iteration — do not regenerate the scene for data edits
+
+For ordinary narrative/content changes, use this sequence:
+
+1. Save or replace `Assets/SandPlanet/Data/Authoring/SandPlanet_Master.xlsx`.
+2. Let Unity reimport it, or run `Tools > SandPlanet > Data v1.6 > Export Master Excel to CSV`.
+3. Run `Tools > SandPlanet > Data v1.6 > Validate Generated CSV`.
+4. Test the existing `SandPlanet_Prototype_04` scene.
+
+**Do not use `Tools > SandPlanet > Generate Prototype 0.4` for normal Excel/content iteration.** The builder creates a new empty scene and saves it back to `Assets/Scenes/SandPlanet_Prototype_04.unity`, so manual scene edits can be overwritten. Use that command only when intentionally rebuilding the prototype scene from scratch.
