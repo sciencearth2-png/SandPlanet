@@ -77,6 +77,12 @@ namespace SandPlanet.Prototype
         private bool modalBusy;
         private bool evaluatingStateTriggers;
 
+        private SandPlanetChoice04 pendingChoice;
+        private ChoiceCheck pendingChoiceCheck;
+        private IReadOnlyList<SandPlanetChoiceBeat04> pendingChoiceBeats = Array.Empty<SandPlanetChoiceBeat04>();
+        private int pendingChoiceBeatIndex;
+        private bool choiceBeatSequenceActive;
+
         public void Configure(
             TextAsset[] dataFiles, Camera camera, GameObject planetRoot, GameObject shipRoot,
             Text hud, Text questTracker, Text log, Button endDay,
@@ -197,13 +203,34 @@ namespace SandPlanet.Prototype
             foreach (SandPlanetCharacter04 c in content.Characters.Values.Where(c => c.Active && GetCharacterLocation(c.Id) == currentLocationId).OrderBy(c => c.Name))
             {
                 SandPlanetCharacter04 captured = c;
-                CreateButton(targetTemplate, targetRoot, "인물  " + c.Name, true, () => SelectTarget("CHARACTER", captured.Id));
+                CreateButton(targetTemplate, targetRoot, BuildTargetLabel("인물", "CHARACTER", c.Id, c.Name), true, () => SelectTarget("CHARACTER", captured.Id));
             }
             foreach (SandPlanetWorldTarget04 w in content.WorldTargets.Values.Where(w => w.Active && w.Clickable && w.LocationId == currentLocationId).OrderBy(w => w.Name))
             {
                 SandPlanetWorldTarget04 captured = w;
-                CreateButton(targetTemplate, targetRoot, "사물  " + w.Name, true, () => SelectTarget("WORLD_TARGET", captured.Id));
+                CreateButton(targetTemplate, targetRoot, BuildTargetLabel("사물", "WORLD_TARGET", w.Id, w.Name), true, () => SelectTarget("WORLD_TARGET", captured.Id));
             }
+        }
+
+        private string BuildTargetLabel(string kind, string targetType, string targetId, string name)
+        {
+            List<SandPlanetInteraction04> available = content.Interactions
+                .Where(i => i.Active && i.TargetType == targetType && i.TargetId == targetId && IsInteractionAvailable(i))
+                .ToList();
+            HashSet<string> questTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (SandPlanetInteraction04 interaction in available)
+            {
+                if (interaction.InteractionType != "QUEST" || string.IsNullOrEmpty(interaction.QuestId)) continue;
+                if (content.Quests.TryGetValue(interaction.QuestId, out SandPlanetQuest04 quest)) questTypes.Add(quest.Type ?? string.Empty);
+            }
+
+            List<string> badges = new List<string>();
+            if (questTypes.Contains("MAIN")) badges.Add("<color=#F0B15E>[MAIN]</color>");
+            if (questTypes.Contains("CHARACTER")) badges.Add("<color=#74C0FC>[CHAR]</color>");
+            if (questTypes.Contains("SIDE") || questTypes.Contains("WORLD")) badges.Add("<color=#91C788>[SUB]</color>");
+            if (badges.Count == 0 && available.Any(i => i.InteractionType == "BASIC")) badges.Add("<color=#AAB4BE>[일상]</color>");
+            string suffix = badges.Count == 0 ? string.Empty : "   " + string.Join(string.Empty, badges);
+            return kind + "  " + name + suffix;
         }
 
         private void SelectTarget(string type, string id)
@@ -276,6 +303,74 @@ namespace SandPlanet.Prototype
         {
             ChoiceCheck check = CheckChoice(choice);
             if (!check.CanExecute) return;
+
+            IReadOnlyList<SandPlanetChoiceBeat04> beats = content.GetChoiceBeats(choice.Id);
+            if (beats.Count > 0)
+            {
+                pendingChoice = choice;
+                pendingChoiceCheck = check;
+                pendingChoiceBeats = beats;
+                pendingChoiceBeatIndex = 0;
+                choiceBeatSequenceActive = true;
+                ShowCurrentChoiceBeat();
+                return;
+            }
+
+            CommitChoice(choice, check);
+        }
+
+        private void ShowCurrentChoiceBeat()
+        {
+            if (!choiceBeatSequenceActive || pendingChoice == null || pendingChoiceBeats == null || pendingChoiceBeats.Count == 0)
+                return;
+
+            pendingChoiceBeatIndex = Mathf.Clamp(pendingChoiceBeatIndex, 0, pendingChoiceBeats.Count - 1);
+            SandPlanetChoiceBeat04 beat = pendingChoiceBeats[pendingChoiceBeatIndex];
+            bool last = pendingChoiceBeatIndex >= pendingChoiceBeats.Count - 1;
+
+            modalBusy = true;
+            SetVisible(modalPanel, true);
+            ClearDynamic(modalButtonRoot, modalButtonTemplate);
+            if (modalTitleText != null) modalTitleText.text = ChoiceBeatTitle(beat);
+            if (modalBodyText != null)
+            {
+                modalBodyText.supportRichText = true;
+                string body = beat.BodyText ?? string.Empty;
+                if (last && !string.IsNullOrEmpty(beat.ResultHint)) body += "\n\n<color=#B7C2CC>" + beat.ResultHint + "</color>";
+                modalBodyText.text = body;
+            }
+            string advance = !string.IsNullOrEmpty(beat.AdvanceText) ? beat.AdvanceText : (last ? "종료" : "이어가기");
+            CreateButton(modalButtonTemplate, modalButtonRoot, advance, true, AdvanceChoiceBeat);
+        }
+
+        private string ChoiceBeatTitle(SandPlanetChoiceBeat04 beat)
+        {
+            if (!string.IsNullOrEmpty(beat.SpeakerNameOverride)) return beat.SpeakerNameOverride;
+            if (beat.SpeakerType == "PLAYER") return "제이";
+            if (beat.SpeakerType == "CHARACTER" && !string.IsNullOrEmpty(beat.SpeakerId) && content.Characters.TryGetValue(beat.SpeakerId, out SandPlanetCharacter04 character)) return character.Name;
+            if (beat.PresentationType == "NARRATION" || beat.SpeakerType == "NARRATOR") return "상황";
+            return activeInteraction != null ? activeInteraction.DisplayText : "결과";
+        }
+
+        private void AdvanceChoiceBeat()
+        {
+            if (!choiceBeatSequenceActive || pendingChoice == null) return;
+            if (pendingChoiceBeatIndex < pendingChoiceBeats.Count - 1)
+            {
+                pendingChoiceBeatIndex++;
+                ShowCurrentChoiceBeat();
+                return;
+            }
+            CommitChoice(pendingChoice, pendingChoiceCheck);
+        }
+
+        private void CommitChoice(SandPlanetChoice04 choice, ChoiceCheck check)
+        {
+            choiceBeatSequenceActive = false;
+            pendingChoice = null;
+            pendingChoiceBeats = Array.Empty<SandPlanetChoiceBeat04>();
+            pendingChoiceBeatIndex = 0;
+
             hour += choice.TimeCost;
             will = Mathf.Max(0, will - check.TotalWill);
             ApplyResult(choice.Result1);
@@ -541,6 +636,16 @@ namespace SandPlanet.Prototype
             CreateButton(modalButtonTemplate, modalButtonRoot, "계속", true, () => { CloseModal(); ShowQueuedEvent(); });
         }
 
+        private void HandleEscapeFromUx()
+        {
+            if (choiceBeatSequenceActive && pendingChoice != null)
+            {
+                CommitChoice(pendingChoice, pendingChoiceCheck);
+                return;
+            }
+            CloseModal();
+        }
+
         private void CloseModal()
         {
             modalBusy = false;
@@ -621,7 +726,7 @@ namespace SandPlanet.Prototype
             button.gameObject.SetActive(true);
             button.interactable = enabled;
             Text text = button.GetComponentInChildren<Text>();
-            if (text != null) text.text = label;
+            if (text != null) { text.supportRichText = true; text.text = label; }
             button.onClick.RemoveAllListeners();
             if (click != null) button.onClick.AddListener(click);
             return button;
