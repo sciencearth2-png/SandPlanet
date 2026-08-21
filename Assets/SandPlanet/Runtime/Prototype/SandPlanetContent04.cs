@@ -14,13 +14,17 @@ namespace SandPlanet.Prototype.DataDriven
         public string Value;
     }
 
-    [Serializable]
-    public sealed class SandPlanetResult04
+    public sealed class SandPlanetStateChange04
     {
-        public string Type;
-        public string TargetType;
-        public string TargetId;
+        public string StateId;
+        public string Operation;
         public string Value;
+    }
+
+    public sealed class SandPlanetAffinityChange04
+    {
+        public string CharacterId;
+        public int Delta;
     }
 
     public sealed class SandPlanetLocation04
@@ -78,10 +82,81 @@ namespace SandPlanet.Prototype.DataDriven
         public bool Active;
     }
 
+    /// <summary>
+    /// One row in the v1.5 integrated narrative flow table.
+    /// A node may have multiple rows when it offers multiple choices.
+    /// </summary>
+    public sealed class SandPlanetFlowNode04
+    {
+        public string NodeId;
+        public string ChoiceId;
+        public string PresentationType;
+        public string Speaker;
+        public string BodyText;
+        public string ChoiceText;
+        public string NextNodeId;
+
+        public int TimeCost;
+        public int WillDelta;
+        public int PersonalXpDelta;
+        public int SocialXpDelta;
+        public int TechnicalXpDelta;
+        public readonly List<SandPlanetAffinityChange04> AffinityChanges = new List<SandPlanetAffinityChange04>();
+        public readonly List<SandPlanetStateChange04> StateChanges = new List<SandPlanetStateChange04>();
+        public string EmitEventId;
+        public string ResultTextOverride;
+
+        public string SoftStat;
+        public int SoftRequirement;
+        public string HardConditionLogic;
+        public SandPlanetCondition04 HardCondition1;
+        public SandPlanetCondition04 HardCondition2;
+        public bool Active;
+    }
+
+    public sealed class SandPlanetInteractionFlow04
+    {
+        public string Id;
+        public string TargetType;
+        public string TargetId;
+        public string EntryText;
+        public string QuestId;
+        public string QuestStepId;
+        public string EntryMode;
+        public int OpenDay;
+        public int CloseDay;
+        public string AllowedTimeSlots;
+        public string RepeatRule;
+        public int Priority;
+        public string ConditionLogic;
+        public SandPlanetCondition04 Condition1;
+        public SandPlanetCondition04 Condition2;
+        public bool Active;
+        public string WriterNote;
+        public readonly List<SandPlanetFlowNode04> Nodes = new List<SandPlanetFlowNode04>();
+
+        public IEnumerable<SandPlanetFlowNode04> GetNodeRows(string nodeId)
+        {
+            return Nodes.Where(n => n.Active && string.Equals(n.NodeId, nodeId, StringComparison.Ordinal));
+        }
+
+        public string StartNodeId
+        {
+            get
+            {
+                SandPlanetFlowNode04 n01 = Nodes.FirstOrDefault(n => n.Active && n.NodeId == "N01");
+                return n01 != null ? n01.NodeId : Nodes.FirstOrDefault(n => n.Active)?.NodeId ?? string.Empty;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Compatibility facade used by the existing Prototype 0.4 UI enhancer.
+    /// In v1.5 one entry represents one Interaction Flow, not one legacy Interaction row.
+    /// </summary>
     public sealed class SandPlanetInteraction04
     {
         public string Id;
-        public string VariantGroupId;
         public string TargetType;
         public string TargetId;
         public string InteractionType;
@@ -89,7 +164,6 @@ namespace SandPlanet.Prototype.DataDriven
         public string QuestStepId;
         public string EntryMode;
         public string DisplayText;
-        public string ChoiceSetId;
         public int OpenDay;
         public int CloseDay;
         public bool Morning;
@@ -101,42 +175,40 @@ namespace SandPlanet.Prototype.DataDriven
         public SandPlanetCondition04 Condition2;
         public int Priority;
         public bool Active;
+        public SandPlanetInteractionFlow04 Flow;
     }
 
-    public sealed class SandPlanetChoice04
+    public sealed class SandPlanetEventFlow04
     {
-        public string ChoiceSetId;
         public string Id;
-        public int Order;
-        public string Text;
-        public string ConfirmText;
-        public string ResultText;
-        public int TimeCost;
-        public int WillCost;
-        public string SoftStat;
-        public int SoftRequirement;
-        public string HardConditionLogic;
-        public SandPlanetCondition04 HardCondition1;
-        public SandPlanetCondition04 HardCondition2;
-        public SandPlanetResult04 Result1;
-        public SandPlanetResult04 Result2;
-        public SandPlanetResult04 Result3;
+        public string Name;
+        public string ExperiencePurpose;
+        public string PlayerPerceivedChange;
+        public string PresentationMode;
         public bool Active;
+        public string WriterNote;
+        public readonly List<SandPlanetFlowNode04> Nodes = new List<SandPlanetFlowNode04>();
+
+        public IEnumerable<SandPlanetFlowNode04> GetNodeRows(string nodeId)
+        {
+            return Nodes.Where(n => n.Active && string.Equals(n.NodeId, nodeId, StringComparison.Ordinal));
+        }
+
+        public string StartNodeId
+        {
+            get
+            {
+                SandPlanetFlowNode04 n01 = Nodes.FirstOrDefault(n => n.Active && n.NodeId == "N01");
+                return n01 != null ? n01.NodeId : Nodes.FirstOrDefault(n => n.Active)?.NodeId ?? string.Empty;
+            }
+        }
     }
 
-    public sealed class SandPlanetChoiceBeat04
+    public sealed class SandPlanetEventNodeMeta04
     {
-        public string Id;
-        public string ChoiceId;
-        public int Order;
-        public string PresentationType;
-        public string SpeakerType;
-        public string SpeakerId;
-        public string SpeakerNameOverride;
-        public string BodyText;
-        public string AdvanceText;
-        public string ResultHint;
-        public bool Active;
+        public string QuestAction;
+        public string QuestId;
+        public string QuestStepId;
     }
 
     public sealed class SandPlanetStateDefinition04
@@ -146,24 +218,6 @@ namespace SandPlanet.Prototype.DataDriven
         public string DefaultValue;
         public string Scope;
         public string Description;
-    }
-
-    public sealed class SandPlanetEvent04
-    {
-        public string Id;
-        public string Name;
-        public string ExperiencePurpose;
-        public string PlayerPerceivedChange;
-        public string PresentationMode;
-        public string Title;
-        public string Body;
-        public string QuestId;
-        public string QuestStepId;
-        public string ChoiceSetId;
-        public SandPlanetResult04 Result1;
-        public SandPlanetResult04 Result2;
-        public SandPlanetResult04 Result3;
-        public bool Active;
     }
 
     public sealed class SandPlanetTrigger04
@@ -201,8 +255,8 @@ namespace SandPlanet.Prototype.DataDriven
     }
 
     /// <summary>
-    /// Runtime content database for Prototype 0.4. The authoritative source is SandPlanet_Master.xlsx;
-    /// these objects are reconstructed from generated CSV TextAssets every play session.
+    /// Runtime content database for the v1.5 integrated-flow authoring workbook.
+    /// The authoritative source is SandPlanet_Master.xlsx; CSV is generated by the Editor exporter.
     /// </summary>
     public sealed class SandPlanetContent04
     {
@@ -212,72 +266,45 @@ namespace SandPlanet.Prototype.DataDriven
         public readonly Dictionary<string, SandPlanetQuest04> Quests = new Dictionary<string, SandPlanetQuest04>(StringComparer.Ordinal);
         public readonly Dictionary<string, SandPlanetQuestStep04> QuestSteps = new Dictionary<string, SandPlanetQuestStep04>(StringComparer.Ordinal);
         public readonly Dictionary<string, SandPlanetStateDefinition04> States = new Dictionary<string, SandPlanetStateDefinition04>(StringComparer.Ordinal);
-        public readonly Dictionary<string, SandPlanetEvent04> Events = new Dictionary<string, SandPlanetEvent04>(StringComparer.Ordinal);
+        public readonly Dictionary<string, SandPlanetInteractionFlow04> InteractionFlows = new Dictionary<string, SandPlanetInteractionFlow04>(StringComparer.Ordinal);
+        public readonly Dictionary<string, SandPlanetEventFlow04> EventFlows = new Dictionary<string, SandPlanetEventFlow04>(StringComparer.Ordinal);
         public readonly List<SandPlanetInteraction04> Interactions = new List<SandPlanetInteraction04>();
-        public readonly List<SandPlanetChoice04> Choices = new List<SandPlanetChoice04>();
-        public readonly List<SandPlanetChoiceBeat04> ChoiceBeats = new List<SandPlanetChoiceBeat04>();
         public readonly List<SandPlanetTrigger04> Triggers = new List<SandPlanetTrigger04>();
         public readonly List<SandPlanetSchedule04> Schedules = new List<SandPlanetSchedule04>();
-
-        private readonly Dictionary<string, List<SandPlanetChoice04>> choicesBySet = new Dictionary<string, List<SandPlanetChoice04>>(StringComparer.Ordinal);
-        private readonly Dictionary<string, List<SandPlanetChoiceBeat04>> beatsByChoice = new Dictionary<string, List<SandPlanetChoiceBeat04>>(StringComparer.Ordinal);
+        public readonly Dictionary<SandPlanetFlowNode04, SandPlanetEventNodeMeta04> EventNodeMeta = new Dictionary<SandPlanetFlowNode04, SandPlanetEventNodeMeta04>();
 
         public static SandPlanetContent04 Load(IEnumerable<TextAsset> csvAssets)
         {
             SandPlanetContent04 db = new SandPlanetContent04();
             Dictionary<string, TextAsset> byName = new Dictionary<string, TextAsset>(StringComparer.OrdinalIgnoreCase);
             foreach (TextAsset asset in csvAssets ?? Array.Empty<TextAsset>())
-            {
-                if (asset != null)
-                    byName[asset.name] = asset;
-            }
+                if (asset != null) byName[asset.name] = asset;
 
             db.LoadLocations(GetRows(byName, "Locations"));
             db.LoadCharacters(GetRows(byName, "Characters"));
             db.LoadWorldTargets(GetRows(byName, "WorldTargets"));
             db.LoadQuests(GetRows(byName, "Quests"));
             db.LoadQuestSteps(GetRows(byName, "QuestSteps"));
-            db.LoadInteractions(GetRows(byName, "Interactions"));
-            db.LoadChoices(GetRows(byName, "Choices"));
-            db.LoadChoiceBeats(GetRows(byName, "ChoiceBeats"));
             db.LoadStates(GetRows(byName, "States"));
-            db.LoadEvents(GetRows(byName, "Events"));
+            db.LoadInteractionFlows(GetRows(byName, "Interactions"));
+            db.LoadEventFlows(GetRows(byName, "Events"));
             db.LoadTriggers(GetRows(byName, "EventTriggers"));
             db.LoadSchedules(GetRows(byName, "NpcSchedules"));
-
-            foreach (IGrouping<string, SandPlanetChoice04> group in db.Choices.Where(c => c.Active).GroupBy(c => c.ChoiceSetId))
-                db.choicesBySet[group.Key] = group.OrderBy(c => c.Order).ToList();
-            foreach (IGrouping<string, SandPlanetChoiceBeat04> group in db.ChoiceBeats.Where(b => b.Active).GroupBy(b => b.ChoiceId))
-                db.beatsByChoice[group.Key] = group.OrderBy(b => b.Order).ThenBy(b => b.Id).ToList();
-
+            db.BuildInteractionCompatibilityEntries();
             return db;
-        }
-
-        public IReadOnlyList<SandPlanetChoice04> GetChoices(string choiceSetId)
-        {
-            if (!string.IsNullOrEmpty(choiceSetId) && choicesBySet.TryGetValue(choiceSetId, out List<SandPlanetChoice04> list))
-                return list;
-            return Array.Empty<SandPlanetChoice04>();
-        }
-
-        public IReadOnlyList<SandPlanetChoiceBeat04> GetChoiceBeats(string choiceId)
-        {
-            if (!string.IsNullOrEmpty(choiceId) && beatsByChoice.TryGetValue(choiceId, out List<SandPlanetChoiceBeat04> list))
-                return list;
-            return Array.Empty<SandPlanetChoiceBeat04>();
         }
 
         private static List<Dictionary<string, string>> GetRows(Dictionary<string, TextAsset> byName, string name)
         {
             if (!byName.TryGetValue(name, out TextAsset asset) || asset == null)
             {
-                Debug.LogError("[SandPlanet 0.4] Missing generated CSV TextAsset: " + name + ".csv");
+                Debug.LogError("[SandPlanet 0.4/v1.5] Missing generated CSV TextAsset: " + name + ".csv");
                 return new List<Dictionary<string, string>>();
             }
             return SandPlanetCsv04.Parse(asset.text);
         }
 
-        private void LoadLocations(List<Dictionary<string, string>> rows)
+        private void LoadLocations(IEnumerable<Dictionary<string, string>> rows)
         {
             foreach (Dictionary<string, string> r in rows)
             {
@@ -289,7 +316,7 @@ namespace SandPlanet.Prototype.DataDriven
             }
         }
 
-        private void LoadCharacters(List<Dictionary<string, string>> rows)
+        private void LoadCharacters(IEnumerable<Dictionary<string, string>> rows)
         {
             foreach (Dictionary<string, string> r in rows)
             {
@@ -302,20 +329,21 @@ namespace SandPlanet.Prototype.DataDriven
             }
         }
 
-        private void LoadWorldTargets(List<Dictionary<string, string>> rows)
+        private void LoadWorldTargets(IEnumerable<Dictionary<string, string>> rows)
         {
             foreach (Dictionary<string, string> r in rows)
             {
                 SandPlanetWorldTarget04 d = new SandPlanetWorldTarget04
                 {
-                    Id = G(r, "WorldTargetID"), Name = G(r, "Name"), LocationId = G(r, "LocationID"), Category = G(r, "TargetCategory"),
-                    SceneObjectKey = G(r, "SceneObjectKey"), Clickable = B(r, "Clickable", true), Active = B(r, "Active", true)
+                    Id = G(r, "WorldTargetID"), Name = G(r, "Name"), LocationId = G(r, "LocationID"),
+                    Category = G(r, "TargetCategory"), SceneObjectKey = G(r, "SceneObjectKey"),
+                    Clickable = B(r, "Clickable", true), Active = B(r, "Active", true)
                 };
                 if (!string.IsNullOrEmpty(d.Id)) WorldTargets[d.Id] = d;
             }
         }
 
-        private void LoadQuests(List<Dictionary<string, string>> rows)
+        private void LoadQuests(IEnumerable<Dictionary<string, string>> rows)
         {
             foreach (Dictionary<string, string> r in rows)
             {
@@ -328,7 +356,7 @@ namespace SandPlanet.Prototype.DataDriven
             }
         }
 
-        private void LoadQuestSteps(List<Dictionary<string, string>> rows)
+        private void LoadQuestSteps(IEnumerable<Dictionary<string, string>> rows)
         {
             foreach (Dictionary<string, string> r in rows)
             {
@@ -342,92 +370,165 @@ namespace SandPlanet.Prototype.DataDriven
             }
         }
 
-        private void LoadInteractions(List<Dictionary<string, string>> rows)
-        {
-            foreach (Dictionary<string, string> r in rows)
-            {
-                Interactions.Add(new SandPlanetInteraction04
-                {
-                    Id = G(r, "InteractionID"), VariantGroupId = G(r, "VariantGroupID"), TargetType = G(r, "TargetType"), TargetId = G(r, "TargetID"),
-                    InteractionType = G(r, "InteractionType"), QuestId = G(r, "QuestID"), QuestStepId = G(r, "QuestStepID"), EntryMode = G(r, "EntryMode"),
-                    DisplayText = G(r, "DisplayText"), ChoiceSetId = G(r, "ChoiceSetID"), OpenDay = I(r, "OpenDay", 1), CloseDay = I(r, "CloseDay", 21),
-                    Morning = B(r, "Morning", true), Afternoon = B(r, "Afternoon", true), Evening = B(r, "Evening", true), RepeatRule = G(r, "RepeatRule", "ONCE"),
-                    ConditionLogic = G(r, "ExtraConditionLogic", "AND"), Condition1 = C(r, "ExtraCond1"), Condition2 = C(r, "ExtraCond2"),
-                    Priority = I(r, "Priority"), Active = B(r, "Active", true)
-                });
-            }
-        }
-
-        private void LoadChoices(List<Dictionary<string, string>> rows)
-        {
-            foreach (Dictionary<string, string> r in rows)
-            {
-                Choices.Add(new SandPlanetChoice04
-                {
-                    ChoiceSetId = G(r, "ChoiceSetID"), Id = G(r, "ChoiceID"), Order = I(r, "Order"), Text = G(r, "ChoiceText"),
-                    ConfirmText = G(r, "ConfirmText"), ResultText = G(r, "ResultText"), TimeCost = I(r, "TimeCost"), WillCost = I(r, "WillCost"),
-                    SoftStat = G(r, "SoftStat", "NONE"), SoftRequirement = I(r, "SoftRequirement"), HardConditionLogic = G(r, "HardConditionLogic", "AND"),
-                    HardCondition1 = C(r, "HardCond1"), HardCondition2 = C(r, "HardCond2"),
-                    Result1 = R(r, "Result1"), Result2 = R(r, "Result2"), Result3 = R(r, "Result3"), Active = B(r, "Active", true)
-                });
-            }
-        }
-
-        private void LoadChoiceBeats(List<Dictionary<string, string>> rows)
-        {
-            foreach (Dictionary<string, string> r in rows)
-            {
-                ChoiceBeats.Add(new SandPlanetChoiceBeat04
-                {
-                    Id = G(r, "BeatID"), ChoiceId = G(r, "ChoiceID"), Order = I(r, "BeatOrder"),
-                    PresentationType = G(r, "PresentationType", "DIALOGUE"), SpeakerType = G(r, "SpeakerType", "NONE"),
-                    SpeakerId = G(r, "SpeakerID"), SpeakerNameOverride = G(r, "SpeakerNameOverride"), BodyText = G(r, "BodyText"),
-                    AdvanceText = G(r, "AdvanceText"), ResultHint = G(r, "ResultHint"), Active = B(r, "Active", true)
-                });
-            }
-        }
-
-        private void LoadStates(List<Dictionary<string, string>> rows)
+        private void LoadStates(IEnumerable<Dictionary<string, string>> rows)
         {
             foreach (Dictionary<string, string> r in rows)
             {
                 SandPlanetStateDefinition04 d = new SandPlanetStateDefinition04
                 {
-                    Id = G(r, "StateID"), DataType = G(r, "DataType"), DefaultValue = G(r, "DefaultValue"), Scope = G(r, "Scope"), Description = G(r, "Description")
+                    Id = G(r, "StateID"), DataType = G(r, "DataType"), DefaultValue = G(r, "DefaultValue"),
+                    Scope = G(r, "Scope"), Description = G(r, "Description")
                 };
                 if (!string.IsNullOrEmpty(d.Id)) States[d.Id] = d;
             }
         }
 
-        private void LoadEvents(List<Dictionary<string, string>> rows)
+        private void LoadInteractionFlows(IEnumerable<Dictionary<string, string>> rows)
         {
             foreach (Dictionary<string, string> r in rows)
             {
-                SandPlanetEvent04 d = new SandPlanetEvent04
+                string id = G(r, "FlowID");
+                if (string.IsNullOrEmpty(id)) continue;
+                if (!InteractionFlows.TryGetValue(id, out SandPlanetInteractionFlow04 flow))
                 {
-                    Id = G(r, "EventID"), Name = G(r, "EventName"), ExperiencePurpose = G(r, "ExperiencePurpose"), PlayerPerceivedChange = G(r, "PlayerPerceivedChange"),
-                    PresentationMode = G(r, "PresentationMode", "SILENT"), Title = G(r, "Title"), Body = G(r, "Body"), QuestId = G(r, "QuestID"),
-                    QuestStepId = G(r, "QuestStepID"), ChoiceSetId = G(r, "ChoiceSetID"), Result1 = R(r, "EventResult1"), Result2 = R(r, "EventResult2"),
-                    Result3 = R(r, "EventResult3"), Active = B(r, "Active", true)
-                };
-                if (!string.IsNullOrEmpty(d.Id)) Events[d.Id] = d;
+                    flow = new SandPlanetInteractionFlow04
+                    {
+                        Id = id,
+                        TargetId = G(r, "TargetID"), EntryText = G(r, "EntryText"), QuestId = G(r, "QuestID"), QuestStepId = G(r, "QuestStepID"),
+                        EntryMode = G(r, "EntryMode", "MENU_OPTION"), OpenDay = I(r, "OpenDay", 1), CloseDay = I(r, "CloseDay", 21),
+                        AllowedTimeSlots = G(r, "AllowedTimeSlots", "MORNING|AFTERNOON|EVENING"), RepeatRule = G(r, "RepeatRule", "ONCE"),
+                        Priority = I(r, "Priority"), ConditionLogic = G(r, "ShowConditionLogic", "AND"),
+                        Condition1 = C(r, "ShowCond1"), Condition2 = C(r, "ShowCond2"), Active = B(r, "Active", true), WriterNote = G(r, "WriterNote")
+                    };
+                    flow.TargetType = Characters.ContainsKey(flow.TargetId) ? "CHARACTER" : "WORLD_TARGET";
+                    InteractionFlows[id] = flow;
+                }
+                flow.Nodes.Add(ParseInteractionNode(r));
             }
         }
 
-        private void LoadTriggers(List<Dictionary<string, string>> rows)
+        private SandPlanetFlowNode04 ParseInteractionNode(Dictionary<string, string> r)
+        {
+            SandPlanetFlowNode04 node = ParseCommonNode(r, "TimeCost");
+            AddAffinity(node, G(r, "Affinity1CharacterID"), I(r, "Affinity1Delta"));
+            AddAffinity(node, G(r, "Affinity2CharacterID"), I(r, "Affinity2Delta"));
+            AddState(node, G(r, "State1ID"), G(r, "State1Change"));
+            AddState(node, G(r, "State2ID"), G(r, "State2Change"));
+            return node;
+        }
+
+        private void LoadEventFlows(IEnumerable<Dictionary<string, string>> rows)
+        {
+            foreach (Dictionary<string, string> r in rows)
+            {
+                string id = G(r, "EventID");
+                if (string.IsNullOrEmpty(id)) continue;
+                if (!EventFlows.TryGetValue(id, out SandPlanetEventFlow04 flow))
+                {
+                    flow = new SandPlanetEventFlow04
+                    {
+                        Id = id, Name = G(r, "EventName"), ExperiencePurpose = G(r, "ExperiencePurpose"),
+                        PlayerPerceivedChange = G(r, "PlayerPerceivedChange"), PresentationMode = G(r, "PresentationMode", "SILENT"),
+                        Active = B(r, "Active", true), WriterNote = G(r, "WriterNote")
+                    };
+                    EventFlows[id] = flow;
+                }
+
+                SandPlanetFlowNode04 node = ParseCommonNode(r, "TimeDelta");
+                AddState(node, G(r, "State1ID"), G(r, "State1Change"));
+                AddState(node, G(r, "State2ID"), G(r, "State2Change"));
+                AddState(node, G(r, "State3ID"), G(r, "State3Change"));
+                AddFixedCastAffinity(node, r);
+                EventNodeMeta[node] = new SandPlanetEventNodeMeta04
+                {
+                    QuestAction = G(r, "QuestAction"), QuestId = G(r, "QuestID"), QuestStepId = G(r, "QuestStepID")
+                };
+                flow.Nodes.Add(node);
+            }
+        }
+
+        private SandPlanetFlowNode04 ParseCommonNode(Dictionary<string, string> r, string timeKey)
+        {
+            return new SandPlanetFlowNode04
+            {
+                NodeId = G(r, "NodeID", "N01"), ChoiceId = G(r, "ChoiceID"), PresentationType = G(r, "PresentationType", "NARRATION"),
+                Speaker = G(r, "Speaker"), BodyText = G(r, "BodyText"), ChoiceText = G(r, "ChoiceText", "계속"), NextNodeId = G(r, "NextNodeID"),
+                TimeCost = I(r, timeKey), WillDelta = I(r, "WillDelta"), PersonalXpDelta = I(r, "PersonalXpDelta"),
+                SocialXpDelta = I(r, "SocialXpDelta"), TechnicalXpDelta = I(r, "TechnicalXpDelta"), EmitEventId = G(r, "EmitEventID"),
+                ResultTextOverride = G(r, "ResultTextOverride"), SoftStat = G(r, "SoftStat", "NONE"), SoftRequirement = I(r, "SoftRequirement"),
+                HardConditionLogic = G(r, "HardConditionLogic", "AND"), HardCondition1 = C(r, "HardCond1"), HardCondition2 = C(r, "HardCond2"),
+                Active = B(r, "Active", true)
+            };
+        }
+
+        private void AddFixedCastAffinity(SandPlanetFlowNode04 node, Dictionary<string, string> r)
+        {
+            AddAffinity(node, "CHA_SAM", I(r, "SamAffinityDelta"));
+            AddAffinity(node, "CHA_JINA", I(r, "JinaAffinityDelta"));
+            AddAffinity(node, "CHA_FAYE", I(r, "FayeAffinityDelta"));
+            AddAffinity(node, "CHA_BENJAMIN", I(r, "BenjaminAffinityDelta"));
+            AddAffinity(node, "CHA_BORICHI", I(r, "BorichiAffinityDelta"));
+            AddAffinity(node, "CHA_DIYA", I(r, "DiyaAffinityDelta"));
+        }
+
+        private static void AddAffinity(SandPlanetFlowNode04 node, string characterId, int delta)
+        {
+            if (!string.IsNullOrEmpty(characterId) && delta != 0)
+                node.AffinityChanges.Add(new SandPlanetAffinityChange04 { CharacterId = characterId, Delta = delta });
+        }
+
+        private static void AddState(SandPlanetFlowNode04 node, string stateId, string change)
+        {
+            if (string.IsNullOrEmpty(stateId) || string.IsNullOrEmpty(change)) return;
+            string[] parts = change.Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
+            node.StateChanges.Add(new SandPlanetStateChange04
+            {
+                StateId = stateId,
+                Operation = parts.Length > 0 ? parts[0].ToUpperInvariant() : "SET",
+                Value = parts.Length > 1 ? parts[1] : string.Empty
+            });
+        }
+
+        private void BuildInteractionCompatibilityEntries()
+        {
+            Interactions.Clear();
+            foreach (SandPlanetInteractionFlow04 flow in InteractionFlows.Values)
+            {
+                bool morning = ContainsSlot(flow.AllowedTimeSlots, "MORNING");
+                bool afternoon = ContainsSlot(flow.AllowedTimeSlots, "AFTERNOON");
+                bool evening = ContainsSlot(flow.AllowedTimeSlots, "EVENING");
+                Interactions.Add(new SandPlanetInteraction04
+                {
+                    Id = flow.Id, TargetType = flow.TargetType, TargetId = flow.TargetId,
+                    InteractionType = string.IsNullOrEmpty(flow.QuestId) ? "BASIC" : "QUEST",
+                    QuestId = flow.QuestId, QuestStepId = flow.QuestStepId, EntryMode = flow.EntryMode, DisplayText = flow.EntryText,
+                    OpenDay = flow.OpenDay, CloseDay = flow.CloseDay, Morning = morning, Afternoon = afternoon, Evening = evening,
+                    RepeatRule = flow.RepeatRule, ConditionLogic = flow.ConditionLogic, Condition1 = flow.Condition1, Condition2 = flow.Condition2,
+                    Priority = flow.Priority, Active = flow.Active, Flow = flow
+                });
+            }
+        }
+
+        private static bool ContainsSlot(string slots, string value)
+        {
+            return (slots ?? string.Empty).Split('|').Any(s => string.Equals(s.Trim(), value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void LoadTriggers(IEnumerable<Dictionary<string, string>> rows)
         {
             foreach (Dictionary<string, string> r in rows)
             {
                 Triggers.Add(new SandPlanetTrigger04
                 {
                     Id = G(r, "TriggerID"), EventId = G(r, "EventID"), TriggerTiming = G(r, "TriggerTiming"), TriggerMomentText = G(r, "TriggerMomentText"),
-                    LocationId = G(r, "LocationID"), DetectorType = G(r, "DetectorType"), DetectorId = G(r, "DetectorID"), ConditionLogic = G(r, "ConditionLogic", "AND"),
-                    Condition1 = C(r, "Cond1"), Condition2 = C(r, "Cond2"), RepeatRule = G(r, "RepeatRule", "ONCE"), Priority = I(r, "Priority"), Active = B(r, "Active", true)
+                    LocationId = G(r, "LocationID"), DetectorType = G(r, "DetectorType"), DetectorId = G(r, "DetectorID"),
+                    ConditionLogic = G(r, "ConditionLogic", "AND"), Condition1 = C(r, "Cond1"), Condition2 = C(r, "Cond2"),
+                    RepeatRule = G(r, "RepeatRule", "ONCE"), Priority = I(r, "Priority"), Active = B(r, "Active", true)
                 });
             }
         }
 
-        private void LoadSchedules(List<Dictionary<string, string>> rows)
+        private void LoadSchedules(IEnumerable<Dictionary<string, string>> rows)
         {
             foreach (Dictionary<string, string> r in rows)
             {
@@ -446,14 +547,6 @@ namespace SandPlanet.Prototype.DataDriven
             return new SandPlanetCondition04
             {
                 Type = G(r, prefix + "Type"), Key = G(r, prefix + "Key"), Operator = G(r, prefix + "Operator"), Value = G(r, prefix + "Value")
-            };
-        }
-
-        private static SandPlanetResult04 R(Dictionary<string, string> r, string prefix)
-        {
-            return new SandPlanetResult04
-            {
-                Type = G(r, prefix + "Type"), TargetType = G(r, prefix + "TargetType"), TargetId = G(r, prefix + "TargetID"), Value = G(r, prefix + "Value")
             };
         }
 
