@@ -2,31 +2,20 @@
 QST_W1_MAIN_01_AWAKE,MAIN,내가 잠든 동안,냉동 수면에서 깨어난 제이가 자신이 빠져 있던 시간을 따라잡는다.,QSTEP_W1_MAIN_01_AWAKE_01,TRUE,100,TRUE,GAME_START에서 활성화.
 QST_W1_MAIN_02_INVESTIGATION,MAIN,이곳에서 살아갈 수 있을까,오아시스가 장기적으로 인간이 살아갈 환경인지 조사하고 결과를 공유한다.,QSTEP_W1_MAIN_02_INVESTIGATION_01,TRUE,100,TRUE,Day 3 활성화.
 QST_W1_MAIN_03_DISCLOSURE,MAIN,누가 진실을 알아야 하는가,오아시스의 위험을 공동체 전체에 공개할지 핵심 인물에게만 공유할지 결정한다.,QSTEP_W1_MAIN_03_DISCLOSURE_01,TRUE,100,TRUE,돌이킬 수 없는 선택. 모두 공개 12h / 제한 공개 6h.
-QST_W1_CHAR_BENJAMIN_01_NAMES,CHARACTER,남겨진 이름들,묘지에서 죽은 사람들의 흔적을 확인하고 벤자민이 그 장소를 대하는 태도를 이해한다.,QSTEP_W1_CHAR_BENJAMIN_01_NAMES_01,TRUE,60,TRUE,
-QST_W1_CHAR_SAM_01_BURDEN,CHARACTER,책임지는 사람,지도자가 되어버린 샘의 부담과 판단 기준을 이해한다.,QSTEP_W1_CHAR_SAM_01_BURDEN_01,TRUE,55,TRUE,
-QST_W1_CHAR_FAYE_01_SHIP,CHARACTER,"망가진 배, 살아 있는 기술자",페이와 수송선 상태를 점검하며 무엇이 아직 살아 있고 무엇이 위험한지 배운다.,QSTEP_W1_CHAR_FAYE_01_SHIP_01,TRUE,55,TRUE,
-QST_W1_SIDE_JINA_RATIONS,SIDE,배급의 기준,지나가 한정된 자원을 어떤 기준으로 배분하는지 이해한다.,QSTEP_W1_SIDE_JINA_RATIONS_01,TRUE,40,TRUE,
-QST_W1_SIDE_DIYA_SETTLEMENT,SIDE,사람들이 사는 방식,디야와 거주지를 둘러보며 임시 거처가 공동체 공간으로 변한 흔적을 본다.,QSTEP_W1_SIDE_DIYA_SETTLEMENT_01,TRUE,40,TRUE,
-QST_W1_SIDE_BORICHI_SKY,SIDE,하늘을 보는 사람,보리치의 기상 관측을 도우며 이 행성의 바람과 모래 움직임을 배운다.,QSTEP_W1_SIDE_BORICHI_SKY_01,TRUE,40,TRUE,
 QST_W2_MAIN_01_STORM_WARNING,MAIN,이상 기류,보리치의 경고를 확인하고 대형 모래폭풍의 접근을 공동체의 문제로 받아들인다.,QSTEP_W2_MAIN_01_STORM_WARNING_01,TRUE,100,TRUE,
 QST_W2_MAIN_02_SHELTER,MAIN,피난처,폭풍 동안 외부 거주가 어렵다는 판단 아래 수송선을 피난처로 전환하기로 한다.,QSTEP_W2_MAIN_02_SHELTER_01,TRUE,100,TRUE,
 QST_W2_MAIN_03_EVAC_PREP,MAIN,사람을 옮길 준비,사람·물자·필수 장비를 수송선으로 옮길 준비도를 채운다.,QSTEP_W2_MAIN_03_EVAC_PREP_01,TRUE,100,TRUE,
 QST_W2_MAIN_04_SEAL_SHIP,MAIN,문이 닫히기 전에,마지막 외부 작업을 끝내고 Day 14에 모든 사람을 수송선 안으로 들인 뒤 출입구를 봉쇄한다.,QSTEP_W2_MAIN_04_SEAL_SHIP_01,TRUE,100,TRUE,
-QST_W2_CHAR_BENJAMIN_02_GRAVES,CHARACTER,남겨둘 수 없는 것,벤자민과 함께 묘지와 기록을 폭풍에 대비해 보호할지 결정한다.,QSTEP_W2_CHAR_BENJAMIN_02_GRAVES_01,TRUE,60,TRUE,
-QST_W2_CHAR_DIYA_01_HOME,CHARACTER,돌아올 집,디야와 거주지의 구조물과 기록을 어디까지 보호할지 결정한다.,QSTEP_W2_CHAR_DIYA_01_HOME_01,TRUE,60,TRUE,
-QST_W2_CHAR_JINA_01_WATER,CHARACTER,마지막 물,지나와 수원·펌프·저장수를 어떻게 배분하고 보호할지 결정한다.,QSTEP_W2_CHAR_JINA_01_WATER_01,TRUE,60,TRUE,
-QST_W2_CHAR_FAYE_02_EQUIPMENT,CHARACTER,가져갈 것과 남길 것,페이와 수송선 외부 설비·예비 부품을 회수할지 보존할지 결정한다.,QSTEP_W2_CHAR_FAYE_02_EQUIPMENT_01,TRUE,60,TRUE,
-QST_W2_SIDE_SEEDS,SIDE,온실의 씨앗,남은 씨앗과 재배 장비를 당장 쓸 물자로 바꿀지 보존할지 결정한다.,QSTEP_W2_SIDE_SEEDS_01,TRUE,35,TRUE,
-QST_W2_SIDE_LAST_OBSERVATION,SIDE,마지막 외부 관측,폭풍이 닿기 직전 보리치와 외부에서 마지막 관측 자료를 확보한다.,QSTEP_W2_SIDE_LAST_OBSERVATION_01,TRUE,35,TRUE,
-QST_W2_SIDE_PERSONAL_ITEMS,SIDE,가져갈 수 있는 것,피난선에 개인 물품을 얼마나 허용할지 정해 사람과 물자의 우선순위를 조정한다.,QSTEP_W2_SIDE_PERSONAL_ITEMS_01,TRUE,35,TRUE,
 QST_W3_MAIN_01_CHAOS,MAIN,닫힌 문,폭풍 첫날 수송선 내부의 혼란과 초기 고장을 안정시킨다.,QSTEP_W3_MAIN_01_CHAOS_01,TRUE,100,TRUE,
 QST_W3_MAIN_02_STORM_ANALYSIS,MAIN,폭풍을 읽는 두 사람,지질학자인 제이와 기상학자인 보리치가 관측을 반복해 폭풍의 구조와 예상 피해를 계산한다.,QSTEP_W3_MAIN_02_STORM_ANALYSIS_01,TRUE,100,TRUE,
 QST_W3_MAIN_03_FORECAST,MAIN,끝이 보인다,폭풍이 Day 21 무렵 끝날 것이라는 결론을 공동체에 발표한다.,QSTEP_W3_MAIN_03_FORECAST_01,TRUE,100,TRUE,
 QST_W3_MAIN_04_FUTURE,MAIN,폭풍 뒤의 삶,주요 인물들과 폭풍 이후의 삶을 이야기하고 각자의 입장을 확인·변화시킨다.,QSTEP_W3_MAIN_04_FUTURE_01,TRUE,100,TRUE,
 QST_W3_MAIN_05_DAY21,MAIN,폭풍 뒤의 풍경,Day 21. 폭풍이 그친 뒤 외부로 나가 21일 동안 지켜낸 것과 잃은 것을 확인한다.,QSTEP_W3_MAIN_05_DAY21_01,TRUE,100,TRUE,
-QST_W3_CHAR_SAM_02_FUTURE,CHARACTER,샘의 대답,공동체 전체를 책임지는 샘과 떠남/정착의 조건을 논의한다.,QSTEP_W3_CHAR_SAM_02_FUTURE_01,TRUE,55,TRUE,"TEMP 시작 입장: UNDECIDED, 안전 쪽으로 기울 수 있음."
-QST_W3_CHAR_JINA_02_FUTURE,CHARACTER,지나의 대답,식량·물·생활 가능성을 기준으로 지나의 미래 입장을 다룬다.,QSTEP_W3_CHAR_JINA_02_FUTURE_01,TRUE,55,TRUE,TEMP 시작 입장: LEAVE. 생활 기반 보존이 높으면 변화 가능.
-QST_W3_CHAR_FAYE_03_FUTURE,CHARACTER,페이의 대답,수송선과 기술 인프라의 가능성을 놓고 페이의 입장을 다룬다.,QSTEP_W3_CHAR_FAYE_03_FUTURE_01,TRUE,55,TRUE,TEMP 시작 입장: LEAVE. 외부 설비 보존/기술 상태에 따라 변화 가능.
-QST_W3_CHAR_BENJAMIN_03_FUTURE,CHARACTER,벤자민의 대답,"죽은 사람들과 묘지, 이 행성에 남은 개인적 의미를 두고 벤자민과 이야기한다.",QSTEP_W3_CHAR_BENJAMIN_03_FUTURE_01,TRUE,55,TRUE,TEMP 시작 입장: STAY. 기존 설정의 '떠나고 싶지 않음'을 반영.
-QST_W3_CHAR_BORICHI_01_FUTURE,CHARACTER,보리치의 대답,기상 위험과 또 다른 죽음에 대한 두려움을 놓고 보리치와 이야기한다.,QSTEP_W3_CHAR_BORICHI_01_FUTURE_01,TRUE,55,TRUE,TEMP 시작 입장: LEAVE. 안전 근거가 충분해야 변화 가능.
-QST_W3_CHAR_DIYA_02_FUTURE,CHARACTER,디야의 대답,공동체가 한 장소에 뿌리내리는 의미와 현실성을 두고 디야와 이야기한다.,QSTEP_W3_CHAR_DIYA_02_FUTURE_01,TRUE,55,TRUE,TEMP 시작 입장: STAY. 거주지 보존도와 공동체 경험을 중시.
+QST_CHAR_BENJAMIN,CHARACTER,남겨진 이름들,"묘지와 죽은 사람들의 기억에서 시작해, 무엇을 남길지와 폭풍 뒤 어디에서 살아갈지까지 벤자민의 상실과 선택을 따라간다.",QSTEP_CHAR_BENJAMIN_01_NAMES,TRUE,65,TRUE,캐릭터당 하나의 장기 퀘스트. Day2~6 벤자민에게 직접 수락.
+QST_CHAR_SAM,CHARACTER,책임지는 사람,"지도자가 되어버린 샘의 부담을 이해하고, 마지막에는 공동체의 미래를 어떤 기준으로 선택하는지까지 따라간다.",QSTEP_CHAR_SAM_01_BURDEN,TRUE,65,TRUE,캐릭터당 하나의 장기 퀘스트. Day2~6 샘에게 직접 수락.
+QST_CHAR_FAYE,CHARACTER,"망가진 배, 살아 있는 기술자","수송선의 손상과 수리 우선순위에서 출발해, 무엇을 가져가고 남길지와 기술로 가능한 미래까지 페이의 관점을 따라간다.",QSTEP_CHAR_FAYE_01_SHIP,TRUE,65,TRUE,캐릭터당 하나의 장기 퀘스트. Day2~6 페이에게 직접 수락.
+QST_CHAR_JINA,CHARACTER,살아남는 기준,"한정된 배급을 나누는 기준에서 시작해 물과 생활 기반의 우선순위, 폭풍 뒤 실제로 살아갈 수 있는 조건까지 지나의 판단을 따라간다.",QSTEP_CHAR_JINA_01_RATIONS,TRUE,65,TRUE,기존 Week1 Side + Week2/3 Character를 하나의 장기 서사로 통합.
+QST_CHAR_DIYA,CHARACTER,돌아올 곳,"사람들이 임시 거처를 삶의 공간으로 바꾸는 모습에서 시작해, 돌아올 집을 보존할지와 공동체가 어디에 뿌리내릴지까지 디야의 관점을 따라간다.",QSTEP_CHAR_DIYA_01_SETTLEMENT,TRUE,65,TRUE,기존 Week1 Side + Week2/3 Character를 하나의 장기 서사로 통합.
+QST_CHAR_BORICHI,CHARACTER,하늘을 보는 사람,"행성의 날씨를 읽는 일에서 시작해 폭풍 직전 마지막 관측과, 다시는 죽음을 만들고 싶지 않은 보리치의 미래 선택까지 따라간다.",QSTEP_CHAR_BORICHI_01_SKY,TRUE,65,TRUE,기존 Week1 Side + Week2 마지막 관측 + Week3 미래를 하나의 장기 서사로 통합.
+QST_W2_SIDE_SEEDS,SIDE,온실의 씨앗,남은 씨앗과 재배 장비를 당장 쓸 물자로 바꿀지 보존할지 결정한다.,QSTEP_W2_SIDE_SEEDS_01,TRUE,35,TRUE,
+QST_W2_SIDE_PERSONAL_ITEMS,SIDE,가져갈 수 있는 것,피난선에 개인 물품을 얼마나 허용할지 정해 사람과 물자의 우선순위를 조정한다.,QSTEP_W2_SIDE_PERSONAL_ITEMS_01,TRUE,35,TRUE,
