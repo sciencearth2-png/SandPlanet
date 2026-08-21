@@ -4,14 +4,14 @@ using System.Globalization;
 using System.Linq;
 using SandPlanet.Prototype.DataDriven;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Prototype 0.4 — CSV driven 21-day vertical slice.
-    /// Content is static CSV data; only runtime state lives in this component.
+    /// Prototype 0.4 runtime updated for the v1.5 integrated-flow workbook.
+    /// Interaction Flow starts from a player click; Event Flow starts from the world/trigger system.
+    /// Both use the same narrative node renderer and staged-result execution.
     /// </summary>
     public sealed class SandPlanetPrototype04Controller : MonoBehaviour
     {
@@ -69,19 +69,19 @@ namespace SandPlanet.Prototype
         private readonly Dictionary<string, int> interactionLastDay = new Dictionary<string, int>(StringComparer.Ordinal);
         private readonly HashSet<string> triggersUsed = new HashSet<string>(StringComparer.Ordinal);
         private readonly Dictionary<string, int> triggerLastDay = new Dictionary<string, int>(StringComparer.Ordinal);
-        private readonly Queue<SandPlanetEvent04> eventQueue = new Queue<SandPlanetEvent04>();
+        private readonly Queue<string> eventQueue = new Queue<string>();
         private readonly List<string> recentLog = new List<string>();
 
         private string currentLocationId;
         private SandPlanetInteraction04 activeInteraction;
+        private SandPlanetInteractionFlow04 activeInteractionFlow;
+        private SandPlanetEventFlow04 activeEventFlow;
+        private string activeNodeId;
+        private bool flowCommitted;
+        private PendingEffects pendingEffects;
         private bool modalBusy;
         private bool evaluatingStateTriggers;
-
-        private SandPlanetChoice04 pendingChoice;
-        private ChoiceCheck pendingChoiceCheck;
-        private IReadOnlyList<SandPlanetChoiceBeat04> pendingChoiceBeats = Array.Empty<SandPlanetChoiceBeat04>();
-        private int pendingChoiceBeatIndex;
-        private bool choiceBeatSequenceActive;
+        private Action simpleModalCloseAction;
 
         public void Configure(
             TextAsset[] dataFiles, Camera camera, GameObject planetRoot, GameObject shipRoot,
@@ -134,20 +134,6 @@ namespace SandPlanet.Prototype
             ShowQueuedEvent();
         }
 
-        private void Update()
-        {
-            if (modalBusy || !string.IsNullOrEmpty(currentLocationId) || !Input.GetMouseButtonDown(0))
-                return;
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-                return;
-            Camera cam = hubCamera != null ? hubCamera : Camera.main;
-            if (cam == null) return;
-            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-            if (!Physics.Raycast(ray, out RaycastHit hit, 500f)) return;
-            PrototypeLocationNode node = hit.collider.GetComponentInParent<PrototypeLocationNode>();
-            if (node != null) OpenLocation(node.LocationId);
-        }
-
         private void InitializeState()
         {
             foreach (SandPlanetStateDefinition04 def in content.States.Values)
@@ -159,13 +145,21 @@ namespace SandPlanet.Prototype
                 questStatus[quest.Id] = "LOCKED";
                 questStep[quest.Id] = string.Empty;
             }
-            Log($"CSV 로드: 장소 {content.Locations.Count}, 퀘스트 {content.Quests.Count}, 이벤트 {content.Events.Count}");
+            Log($"v1.5 CSV 로드: 장소 {content.Locations.Count}, 상호작용 플로우 {content.InteractionFlows.Count}, 이벤트 플로우 {content.EventFlows.Count}");
         }
 
         private void WireButtons()
         {
-            if (endDayButton != null) { endDayButton.onClick.RemoveAllListeners(); endDayButton.onClick.AddListener(EndDay); }
-            if (backButton != null) { backButton.onClick.RemoveAllListeners(); backButton.onClick.AddListener(CloseLocation); }
+            if (endDayButton != null)
+            {
+                endDayButton.onClick.RemoveAllListeners();
+                endDayButton.onClick.AddListener(EndDay);
+            }
+            if (backButton != null)
+            {
+                backButton.onClick.RemoveAllListeners();
+                backButton.onClick.AddListener(CloseLocation);
+            }
             if (targetTemplate != null) targetTemplate.gameObject.SetActive(false);
             if (interactionTemplate != null) interactionTemplate.gameObject.SetActive(false);
             if (modalButtonTemplate != null) modalButtonTemplate.gameObject.SetActive(false);
@@ -173,11 +167,12 @@ namespace SandPlanet.Prototype
 
         private void OpenLocation(string locationId)
         {
+            if (modalBusy) return;
             if (!content.Locations.TryGetValue(locationId, out SandPlanetLocation04 location) || !location.Active) return;
             currentLocationId = locationId;
             SetVisible(locationPanel, true);
             if (locationTitleText != null) locationTitleText.text = location.Name;
-            if (locationHintText != null) locationHintText.text = "사람/사물을 선택하면 현재 가능한 행동만 표시됩니다.";
+            if (locationHintText != null) locationHintText.text = "사람/사물을 선택하면 현재 가능한 플로우가 표시됩니다.";
             RefreshTargets();
             ClearDynamic(interactionRoot, interactionTemplate);
             Log("장소 진입: " + location.Name);
@@ -186,6 +181,7 @@ namespace SandPlanet.Prototype
 
         private void CloseLocation()
         {
+            if (modalBusy) return;
             currentLocationId = null;
             activeInteraction = null;
             SetVisible(locationPanel, false);
@@ -203,40 +199,37 @@ namespace SandPlanet.Prototype
             foreach (SandPlanetCharacter04 c in content.Characters.Values.Where(c => c.Active && GetCharacterLocation(c.Id) == currentLocationId).OrderBy(c => c.Name))
             {
                 SandPlanetCharacter04 captured = c;
-                CreateButton(targetTemplate, targetRoot, BuildTargetLabel("인물", "CHARACTER", c.Id, c.Name), true, () => SelectTarget("CHARACTER", captured.Id));
+                string badge = BuildTargetBadge("CHARACTER", c.Id);
+                CreateButton(targetTemplate, targetRoot, "인물  " + c.Name + badge, true, () => SelectTarget("CHARACTER", captured.Id));
             }
             foreach (SandPlanetWorldTarget04 w in content.WorldTargets.Values.Where(w => w.Active && w.Clickable && w.LocationId == currentLocationId).OrderBy(w => w.Name))
             {
                 SandPlanetWorldTarget04 captured = w;
-                CreateButton(targetTemplate, targetRoot, BuildTargetLabel("사물", "WORLD_TARGET", w.Id, w.Name), true, () => SelectTarget("WORLD_TARGET", captured.Id));
+                string badge = BuildTargetBadge("WORLD_TARGET", w.Id);
+                CreateButton(targetTemplate, targetRoot, "사물  " + w.Name + badge, true, () => SelectTarget("WORLD_TARGET", captured.Id));
             }
         }
 
-        private string BuildTargetLabel(string kind, string targetType, string targetId, string name)
+        private string BuildTargetBadge(string targetType, string targetId)
         {
-            List<SandPlanetInteraction04> available = content.Interactions
-                .Where(i => i.Active && i.TargetType == targetType && i.TargetId == targetId && IsInteractionAvailable(i))
-                .ToList();
-            HashSet<string> questTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            List<SandPlanetInteraction04> available = GetAvailableInteractions(targetType, targetId);
+            HashSet<string> types = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (SandPlanetInteraction04 interaction in available)
             {
-                if (interaction.InteractionType != "QUEST" || string.IsNullOrEmpty(interaction.QuestId)) continue;
-                if (content.Quests.TryGetValue(interaction.QuestId, out SandPlanetQuest04 quest)) questTypes.Add(quest.Type ?? string.Empty);
+                if (string.IsNullOrEmpty(interaction.QuestId)) continue;
+                if (content.Quests.TryGetValue(interaction.QuestId, out SandPlanetQuest04 q)) types.Add(q.Type);
             }
-
             List<string> badges = new List<string>();
-            if (questTypes.Contains("MAIN")) badges.Add("<color=#F0B15E>[MAIN]</color>");
-            if (questTypes.Contains("CHARACTER")) badges.Add("<color=#74C0FC>[CHAR]</color>");
-            if (questTypes.Contains("SIDE") || questTypes.Contains("WORLD")) badges.Add("<color=#91C788>[SUB]</color>");
-            if (badges.Count == 0 && available.Any(i => i.InteractionType == "BASIC")) badges.Add("<color=#AAB4BE>[일상]</color>");
-            string suffix = badges.Count == 0 ? string.Empty : "   " + string.Join(string.Empty, badges);
-            return kind + "  " + name + suffix;
+            if (types.Contains("MAIN")) badges.Add(" <color=#F0B15E>[MAIN]</color>");
+            if (types.Contains("CHARACTER")) badges.Add(" <color=#74C0FC>[CHAR]</color>");
+            if (types.Contains("SIDE") || types.Contains("WORLD")) badges.Add(" <color=#91C788>[SUB]</color>");
+            if (badges.Count == 0 && available.Any(i => string.IsNullOrEmpty(i.QuestId))) badges.Add(" <color=#AAB4BE>[일상]</color>");
+            return string.Join(string.Empty, badges);
         }
 
         private void SelectTarget(string type, string id)
         {
-            List<SandPlanetInteraction04> list = content.Interactions
-                .Where(i => i.Active && i.TargetType == type && i.TargetId == id && IsInteractionAvailable(i))
+            List<SandPlanetInteraction04> list = GetAvailableInteractions(type, id)
                 .OrderByDescending(i => i.Priority).ThenBy(i => i.DisplayText).ToList();
 
             SandPlanetInteraction04 direct = list.FirstOrDefault(i => i.EntryMode == "DIRECT_CLICK");
@@ -247,173 +240,247 @@ namespace SandPlanet.Prototype
             }
 
             ClearDynamic(interactionRoot, interactionTemplate);
-            if (locationHintText != null) locationHintText.text = GetTargetName(type, id) + " — 가능한 행동";
+            if (locationHintText != null) locationHintText.text = GetTargetName(type, id) + " — 가능한 상호작용";
             if (list.Count == 0)
-                CreateButton(interactionTemplate, interactionRoot, "현재 가능한 행동 없음", false, null);
+            {
+                CreateButton(interactionTemplate, interactionRoot, "현재 가능한 상호작용 없음", false, null);
+                return;
+            }
+
             foreach (SandPlanetInteraction04 interaction in list)
             {
                 SandPlanetInteraction04 captured = interaction;
                 string prefix = interaction.EntryMode == "WORLD_MARKER" ? "◆ " : string.Empty;
-                CreateButton(interactionTemplate, interactionRoot, prefix + interaction.DisplayText, true, () => BeginInteraction(captured));
+                string badge = InteractionBadge(interaction);
+                CreateButton(interactionTemplate, interactionRoot, prefix + interaction.DisplayText + badge, true, () => BeginInteraction(captured));
             }
+        }
+
+        private string InteractionBadge(SandPlanetInteraction04 interaction)
+        {
+            if (string.IsNullOrEmpty(interaction.QuestId)) return "  <color=#AAB4BE>[일상]</color>";
+            if (!content.Quests.TryGetValue(interaction.QuestId, out SandPlanetQuest04 q)) return string.Empty;
+            if (q.Type == "MAIN") return "  <color=#F0B15E>[MAIN]</color>";
+            if (q.Type == "CHARACTER") return "  <color=#74C0FC>[CHAR]</color>";
+            return "  <color=#91C788>[SUB]</color>";
+        }
+
+        private List<SandPlanetInteraction04> GetAvailableInteractions(string targetType, string targetId)
+        {
+            return content.Interactions
+                .Where(i => i.Active && i.TargetType == targetType && i.TargetId == targetId && IsInteractionAvailable(i))
+                .ToList();
         }
 
         private void BeginInteraction(SandPlanetInteraction04 interaction)
         {
+            if (interaction == null || interaction.Flow == null) return;
             activeInteraction = interaction;
-            ShowChoiceSet(interaction.DisplayText, interaction.ChoiceSetId, false);
-        }
-
-        private void ShowChoiceSet(string title, string choiceSetId, bool eventChoice)
-        {
-            IReadOnlyList<SandPlanetChoice04> choices = content.GetChoices(choiceSetId);
+            activeInteractionFlow = interaction.Flow;
+            activeEventFlow = null;
+            activeNodeId = interaction.Flow.StartNodeId;
+            flowCommitted = false;
+            pendingEffects = new PendingEffects();
+            simpleModalCloseAction = null;
             modalBusy = true;
             SetVisible(modalPanel, true);
-            ClearDynamic(modalButtonRoot, modalButtonTemplate);
-            if (modalTitleText != null) modalTitleText.text = title;
-            if (modalBodyText != null) modalBodyText.text = eventChoice ? "즉시 판단이 필요한 사건입니다." : "시간과 결과를 확인하고 선택하세요.";
-
-            foreach (SandPlanetChoice04 choice in choices)
-            {
-                ChoiceCheck check = CheckChoice(choice);
-                SandPlanetChoice04 captured = choice;
-                string cost = choice.TimeCost > 0 ? $"  [{choice.TimeCost}h" : "  [0h";
-                if (check.TotalWill > 0) cost += $" / 의지 {check.TotalWill}";
-                cost += "]";
-                string label = choice.Text + cost + (check.CanExecute ? string.Empty : "\n<" + check.Reason + ">");
-                CreateButton(modalButtonTemplate, modalButtonRoot, label, check.CanExecute, () => ExecuteChoice(captured));
-            }
-            CreateButton(modalButtonTemplate, modalButtonRoot, "취소", !eventChoice, CloseModal);
+            ShowCurrentFlowNode();
         }
 
-        private ChoiceCheck CheckChoice(SandPlanetChoice04 choice)
+        private void BeginEventFlow(SandPlanetEventFlow04 flow)
         {
-            if (choice == null || !choice.Active) return new ChoiceCheck(false, 0, "비활성");
-            if (hour + choice.TimeCost > DayEndHour) return new ChoiceCheck(false, 0, "오늘 남은 시간 부족");
-            if (!EvaluatePair(choice.HardConditionLogic, choice.HardCondition1, choice.HardCondition2)) return new ChoiceCheck(false, 0, "조건 미충족");
+            if (flow == null) return;
+            activeInteraction = null;
+            activeInteractionFlow = null;
+            activeEventFlow = flow;
+            activeNodeId = flow.StartNodeId;
+            flowCommitted = false;
+            pendingEffects = new PendingEffects();
+            simpleModalCloseAction = null;
+            modalBusy = true;
+            SetVisible(modalPanel, true);
+            ShowCurrentFlowNode();
+        }
+
+        private void ShowCurrentFlowNode()
+        {
+            List<SandPlanetFlowNode04> rows = CurrentNodeRows().Where(n => n.Active).ToList();
+            if (rows.Count == 0)
+            {
+                FinalizeActiveFlow();
+                return;
+            }
+
+            ClearDynamic(modalButtonRoot, modalButtonTemplate);
+            if (modalTitleText != null)
+                modalTitleText.text = activeInteractionFlow != null ? activeInteraction.DisplayText : activeEventFlow.Name;
+
+            bool sameBody = rows.Select(r => r.BodyText ?? string.Empty).Distinct().Count() <= 1;
+            string body;
+            if (rows.Count > 1 && !sameBody)
+                body = activeInteractionFlow != null ? activeInteraction.DisplayText : activeEventFlow.PlayerPerceivedChange;
+            else
+                body = FormatNodeBody(rows[0]);
+            if (modalBodyText != null) modalBodyText.text = body;
+
+            foreach (SandPlanetFlowNode04 row in rows)
+            {
+                NodeCheck check = CheckNode(row);
+                SandPlanetFlowNode04 captured = row;
+                string label = string.IsNullOrEmpty(row.ChoiceText) ? (string.IsNullOrEmpty(row.NextNodeId) ? "종료" : "계속") : row.ChoiceText;
+                string cost = BuildCostLabel(row, check);
+                if (!check.CanExecute) label += "\n<" + check.Reason + ">";
+                CreateButton(modalButtonTemplate, modalButtonRoot, label + cost, check.CanExecute, () => ChooseNode(captured));
+            }
+
+            if (activeInteractionFlow != null && !flowCommitted)
+                CreateButton(modalButtonTemplate, modalButtonRoot, "취소", true, CancelActiveFlow);
+        }
+
+        private string FormatNodeBody(SandPlanetFlowNode04 row)
+        {
+            string body = row.BodyText ?? string.Empty;
+            string speaker = SpeakerName(row.Speaker);
+            if (row.PresentationType == "DIALOGUE" && !string.IsNullOrEmpty(speaker))
+                body = "<b>" + speaker + "</b>\n\n" + body;
+            if (string.IsNullOrEmpty(row.ChoiceId) && !string.IsNullOrEmpty(row.ResultTextOverride))
+                body += "\n\n<color=#B9C4CD>" + row.ResultTextOverride + "</color>";
+            return body;
+        }
+
+        private string SpeakerName(string speaker)
+        {
+            if (string.IsNullOrEmpty(speaker) || speaker == "NARRATOR" || speaker == "NONE") return string.Empty;
+            if (speaker == "PLAYER") return "제이";
+            return content.Characters.TryGetValue(speaker, out SandPlanetCharacter04 c) ? c.Name : speaker;
+        }
+
+        private string BuildCostLabel(SandPlanetFlowNode04 row, NodeCheck check)
+        {
+            List<string> parts = new List<string>();
+            if (row.TimeCost != 0) parts.Add(row.TimeCost + "h");
+            int willCost = Math.Max(0, -row.WillDelta) + check.ExtraWillCost;
+            if (willCost > 0) parts.Add("의지 " + willCost);
+            return parts.Count == 0 ? string.Empty : "  [" + string.Join(" / ", parts) + "]";
+        }
+
+        private NodeCheck CheckNode(SandPlanetFlowNode04 node)
+        {
+            if (node == null || !node.Active) return new NodeCheck(false, 0, "비활성");
+            int stagedTime = pendingEffects?.TimeDelta ?? 0;
+            if (hour + stagedTime + node.TimeCost > DayEndHour) return new NodeCheck(false, 0, "오늘 남은 시간 부족");
+            if (!EvaluatePair(node.HardConditionLogic, node.HardCondition1, node.HardCondition2)) return new NodeCheck(false, 0, "조건 미충족");
+
             int extraWill = 0;
-            if (!string.IsNullOrEmpty(choice.SoftStat) && choice.SoftStat != "NONE" && choice.SoftRequirement > 0)
-                extraWill = Math.Max(0, choice.SoftRequirement - GetStatLevel(choice.SoftStat)); // TEMP 0.4: Lv 1 부족 = 의지 1.
-            int total = choice.WillCost + extraWill;
-            if (will < total) return new ChoiceCheck(false, total, "의지 부족");
-            return new ChoiceCheck(true, total, string.Empty);
+            if (!string.IsNullOrEmpty(node.SoftStat) && node.SoftStat != "NONE" && node.SoftRequirement > 0)
+                extraWill = Math.Max(0, node.SoftRequirement - GetStatLevel(node.SoftStat)); // TEMP: 부족 Lv 1 = 의지 1.
+
+            int stagedWill = pendingEffects?.WillDelta ?? 0;
+            if (will + stagedWill + node.WillDelta - extraWill < 0)
+                return new NodeCheck(false, extraWill, "의지 부족");
+            return new NodeCheck(true, extraWill, string.Empty);
         }
 
-        private void ExecuteChoice(SandPlanetChoice04 choice)
+        private void ChooseNode(SandPlanetFlowNode04 node)
         {
-            ChoiceCheck check = CheckChoice(choice);
+            NodeCheck check = CheckNode(node);
             if (!check.CanExecute) return;
-
-            IReadOnlyList<SandPlanetChoiceBeat04> beats = content.GetChoiceBeats(choice.Id);
-            if (beats.Count > 0)
+            flowCommitted = true;
+            StageNode(node, check.ExtraWillCost);
+            if (!string.IsNullOrEmpty(node.NextNodeId))
             {
-                pendingChoice = choice;
-                pendingChoiceCheck = check;
-                pendingChoiceBeats = beats;
-                pendingChoiceBeatIndex = 0;
-                choiceBeatSequenceActive = true;
-                ShowCurrentChoiceBeat();
+                activeNodeId = node.NextNodeId;
+                ShowCurrentFlowNode();
                 return;
             }
-
-            CommitChoice(choice, check);
+            FinalizeActiveFlow();
         }
 
-        private void ShowCurrentChoiceBeat()
+        private void StageNode(SandPlanetFlowNode04 node, int extraWillCost)
         {
-            if (!choiceBeatSequenceActive || pendingChoice == null || pendingChoiceBeats == null || pendingChoiceBeats.Count == 0)
-                return;
+            if (pendingEffects == null) pendingEffects = new PendingEffects();
+            pendingEffects.TimeDelta += node.TimeCost;
+            pendingEffects.WillDelta += node.WillDelta - extraWillCost;
+            pendingEffects.PersonalXpDelta += node.PersonalXpDelta;
+            pendingEffects.SocialXpDelta += node.SocialXpDelta;
+            pendingEffects.TechnicalXpDelta += node.TechnicalXpDelta;
+            foreach (SandPlanetAffinityChange04 a in node.AffinityChanges) pendingEffects.AddAffinity(a.CharacterId, a.Delta);
+            foreach (SandPlanetStateChange04 s in node.StateChanges) pendingEffects.StateChanges.Add(s);
+            if (!string.IsNullOrEmpty(node.EmitEventId)) pendingEffects.EmitEvents.Add(node.EmitEventId);
+            if (!string.IsNullOrEmpty(node.ResultTextOverride)) pendingEffects.ResultText = node.ResultTextOverride;
 
-            pendingChoiceBeatIndex = Mathf.Clamp(pendingChoiceBeatIndex, 0, pendingChoiceBeats.Count - 1);
-            SandPlanetChoiceBeat04 beat = pendingChoiceBeats[pendingChoiceBeatIndex];
-            bool last = pendingChoiceBeatIndex >= pendingChoiceBeats.Count - 1;
+            if (activeEventFlow != null && content.EventNodeMeta.TryGetValue(node, out SandPlanetEventNodeMeta04 meta) && !string.IsNullOrEmpty(meta.QuestAction))
+                pendingEffects.QuestActions.Add(meta);
+        }
 
-            modalBusy = true;
-            SetVisible(modalPanel, true);
-            ClearDynamic(modalButtonRoot, modalButtonTemplate);
-            if (modalTitleText != null) modalTitleText.text = ChoiceBeatTitle(beat);
-            if (modalBodyText != null)
+        private void FinalizeActiveFlow()
+        {
+            PendingEffects effects = pendingEffects ?? new PendingEffects();
+            SandPlanetInteraction04 finishedInteraction = activeInteraction;
+            bool wasInteraction = activeInteractionFlow != null;
+
+            CloseModalInternal();
+            ApplyPendingEffects(effects);
+
+            if (wasInteraction && finishedInteraction != null)
             {
-                modalBodyText.supportRichText = true;
-                string body = beat.BodyText ?? string.Empty;
-                if (last && !string.IsNullOrEmpty(beat.ResultHint)) body += "\n\n<color=#B7C2CC>" + beat.ResultHint + "</color>";
-                modalBodyText.text = body;
-            }
-            string advance = !string.IsNullOrEmpty(beat.AdvanceText) ? beat.AdvanceText : (last ? "종료" : "이어가기");
-            CreateButton(modalButtonTemplate, modalButtonRoot, advance, true, AdvanceChoiceBeat);
-        }
-
-        private string ChoiceBeatTitle(SandPlanetChoiceBeat04 beat)
-        {
-            if (!string.IsNullOrEmpty(beat.SpeakerNameOverride)) return beat.SpeakerNameOverride;
-            if (beat.SpeakerType == "PLAYER") return "제이";
-            if (beat.SpeakerType == "CHARACTER" && !string.IsNullOrEmpty(beat.SpeakerId) && content.Characters.TryGetValue(beat.SpeakerId, out SandPlanetCharacter04 character)) return character.Name;
-            if (beat.PresentationType == "NARRATION" || beat.SpeakerType == "NARRATOR") return "상황";
-            return activeInteraction != null ? activeInteraction.DisplayText : "결과";
-        }
-
-        private void AdvanceChoiceBeat()
-        {
-            if (!choiceBeatSequenceActive || pendingChoice == null) return;
-            if (pendingChoiceBeatIndex < pendingChoiceBeats.Count - 1)
-            {
-                pendingChoiceBeatIndex++;
-                ShowCurrentChoiceBeat();
-                return;
-            }
-            CommitChoice(pendingChoice, pendingChoiceCheck);
-        }
-
-        private void CommitChoice(SandPlanetChoice04 choice, ChoiceCheck check)
-        {
-            choiceBeatSequenceActive = false;
-            pendingChoice = null;
-            pendingChoiceBeats = Array.Empty<SandPlanetChoiceBeat04>();
-            pendingChoiceBeatIndex = 0;
-
-            hour += choice.TimeCost;
-            will = Mathf.Max(0, will - check.TotalWill);
-            ApplyResult(choice.Result1);
-            ApplyResult(choice.Result2);
-            ApplyResult(choice.Result3);
-
-            if (activeInteraction != null)
-            {
-                interactionsUsed.Add(activeInteraction.Id);
-                interactionLastDay[activeInteraction.Id] = day;
+                interactionsUsed.Add(finishedInteraction.Id);
+                interactionLastDay[finishedInteraction.Id] = day;
                 ProcessTriggers("INTERACTION");
             }
 
-            string result = string.IsNullOrEmpty(choice.ResultText) ? "선택 완료" : choice.ResultText;
-            Log(result);
-            activeInteraction = null;
-            CloseModal();
+            if (!string.IsNullOrEmpty(effects.ResultText)) Log(effects.ResultText);
+            if (!string.IsNullOrEmpty(currentLocationId))
+            {
+                RefreshTargets();
+                ClearDynamic(interactionRoot, interactionTemplate);
+            }
             RefreshUi();
-            if (!string.IsNullOrEmpty(currentLocationId)) RefreshTargets();
             ShowQueuedEvent();
         }
 
-        private void ApplyResult(SandPlanetResult04 result)
+        private void ApplyPendingEffects(PendingEffects effects)
         {
-            if (result == null || string.IsNullOrEmpty(result.Type)) return;
-            switch (result.Type)
+            hour = Mathf.Clamp(hour + effects.TimeDelta, DayStartHour, DayEndHour);
+            will = Mathf.Clamp(will + effects.WillDelta, 0, maxWill);
+            AddXp("PERSONAL", effects.PersonalXpDelta);
+            AddXp("SOCIAL", effects.SocialXpDelta);
+            AddXp("TECHNICAL", effects.TechnicalXpDelta);
+
+            foreach (KeyValuePair<string, int> pair in effects.AffinityDelta)
+                affinity[pair.Key] = Mathf.Clamp(GetAffinity(pair.Key) + pair.Value, 0, 5);
+            foreach (SandPlanetStateChange04 change in effects.StateChanges)
+                ApplyStateChange(change);
+            foreach (SandPlanetEventNodeMeta04 action in effects.QuestActions)
+                ApplyQuestAction(action);
+            foreach (string eventId in effects.EmitEvents)
+                FireEvent(eventId);
+        }
+
+        private void ApplyStateChange(SandPlanetStateChange04 change)
+        {
+            if (change == null || string.IsNullOrEmpty(change.StateId)) return;
+            if (change.Operation == "ADD")
+                SetState(change.StateId, (ParseInt(GetState(change.StateId)) + ParseInt(change.Value)).ToString(CultureInfo.InvariantCulture));
+            else
+                SetState(change.StateId, change.Value);
+        }
+
+        private void ApplyQuestAction(SandPlanetEventNodeMeta04 action)
+        {
+            if (action == null) return;
+            switch (action.QuestAction)
             {
-                case "ADD_XP": AddXp(result.TargetId, ParseInt(result.Value)); break;
-                case "ADD_AFFINITY": affinity[result.TargetId] = Mathf.Clamp(GetAffinity(result.TargetId) + ParseInt(result.Value), 0, 5); break;
-                case "ADD_WILL": will = Mathf.Clamp(will + ParseInt(result.Value), 0, maxWill); break;
-                case "SET_STATE": SetState(result.TargetId, result.Value); break;
-                case "ADD_STATE": SetState(result.TargetId, (ParseInt(GetState(result.TargetId)) + ParseInt(result.Value)).ToString(CultureInfo.InvariantCulture)); break;
-                case "EMIT_EVENT": FireEvent(result.TargetId); break;
-                case "ACTIVATE_QUEST": ActivateQuest(result.TargetId); break;
-                case "COMPLETE_QUEST": CompleteQuest(result.TargetId); break;
-                case "FAIL_QUEST": SetQuestStatus(result.TargetId, "FAILED"); break;
-                case "SET_QUEST_STEP": SetQuestStep(result.TargetId, result.Value); break;
-                default: Debug.LogWarning("[SandPlanet 0.4] Unsupported result type: " + result.Type); break;
+                case "ACTIVATE_QUEST": ActivateQuest(action.QuestId); break;
+                case "COMPLETE_QUEST": CompleteQuest(action.QuestId); break;
+                case "FAIL_QUEST": SetQuestStatus(action.QuestId, "FAILED"); break;
+                case "SET_QUEST_STEP": SetQuestStep(action.QuestId, action.QuestStepId); break;
             }
         }
 
         private void AddXp(string stat, int amount)
         {
+            if (amount == 0) return;
             if (stat == "PERSONAL") AddXpTo(ref personalLevel, ref personalXp, amount);
             else if (stat == "SOCIAL" || stat == "INTERPERSONAL") AddXpTo(ref socialLevel, ref socialXp, amount);
             else if (stat == "TECHNICAL") AddXpTo(ref technicalLevel, ref technicalXp, amount);
@@ -421,21 +488,78 @@ namespace SandPlanet.Prototype
 
         private static void AddXpTo(ref int level, ref int xp, int amount)
         {
-            xp += Math.Max(0, amount);
-            while (xp >= XpPerLevel && level < 20) { xp -= XpPerLevel; level++; }
+            if (amount < 0)
+            {
+                xp = Mathf.Max(0, xp + amount);
+                return;
+            }
+            xp += amount;
+            while (xp >= XpPerLevel && level < 20)
+            {
+                xp -= XpPerLevel;
+                level++;
+            }
             if (level >= 20) xp = Mathf.Min(xp, XpPerLevel - 1);
         }
 
         private void FireEvent(string eventId)
         {
-            if (string.IsNullOrEmpty(eventId) || !content.Events.TryGetValue(eventId, out SandPlanetEvent04 evt) || !evt.Active) return;
+            if (string.IsNullOrEmpty(eventId) || !content.EventFlows.TryGetValue(eventId, out SandPlanetEventFlow04 flow) || !flow.Active) return;
             eventsOccurred.Add(eventId);
-            ApplyResult(evt.Result1);
-            ApplyResult(evt.Result2);
-            ApplyResult(evt.Result3);
             ProgressQuestsFromEvent(eventId);
-            if (evt.PresentationMode != "SILENT" || !string.IsNullOrEmpty(evt.ChoiceSetId)) eventQueue.Enqueue(evt);
-            Log("Event: " + evt.Name);
+            Log("Event: " + flow.Name);
+
+            if (string.Equals(flow.PresentationMode, "SILENT", StringComparison.OrdinalIgnoreCase) && CanAutoResolve(flow))
+            {
+                ResolveSilentEvent(flow);
+                return;
+            }
+            eventQueue.Enqueue(eventId);
+        }
+
+        private bool CanAutoResolve(SandPlanetEventFlow04 flow)
+        {
+            string nodeId = flow.StartNodeId;
+            HashSet<string> visited = new HashSet<string>(StringComparer.Ordinal);
+            while (!string.IsNullOrEmpty(nodeId) && visited.Add(nodeId))
+            {
+                List<SandPlanetFlowNode04> rows = flow.GetNodeRows(nodeId).ToList();
+                if (rows.Count != 1) return false;
+                nodeId = rows[0].NextNodeId;
+            }
+            return true;
+        }
+
+        private void ResolveSilentEvent(SandPlanetEventFlow04 flow)
+        {
+            PendingEffects local = new PendingEffects();
+            string nodeId = flow.StartNodeId;
+            HashSet<string> visited = new HashSet<string>(StringComparer.Ordinal);
+            while (!string.IsNullOrEmpty(nodeId) && visited.Add(nodeId))
+            {
+                SandPlanetFlowNode04 node = flow.GetNodeRows(nodeId).FirstOrDefault();
+                if (node == null) break;
+                PendingEffects previous = pendingEffects;
+                SandPlanetEventFlow04 previousEvent = activeEventFlow;
+                pendingEffects = local;
+                activeEventFlow = flow;
+                StageNode(node, 0);
+                activeEventFlow = previousEvent;
+                pendingEffects = previous;
+                nodeId = node.NextNodeId;
+            }
+            ApplyPendingEffects(local);
+            if (!string.IsNullOrEmpty(local.ResultText)) Log(local.ResultText);
+            RefreshUi();
+            ShowQueuedEvent();
+        }
+
+        private void ShowQueuedEvent()
+        {
+            if (modalBusy || eventQueue.Count == 0) return;
+            string id = eventQueue.Dequeue();
+            if (!content.EventFlows.TryGetValue(id, out SandPlanetEventFlow04 flow)) return;
+            BeginEventFlow(flow);
         }
 
         private void ProgressQuestsFromEvent(string eventId)
@@ -468,12 +592,13 @@ namespace SandPlanet.Prototype
 
         private void SetQuestStatus(string questId, string status)
         {
-            if (questStatus.ContainsKey(questId)) questStatus[questId] = status;
+            if (!string.IsNullOrEmpty(questId) && questStatus.ContainsKey(questId)) questStatus[questId] = status;
         }
 
         private void SetQuestStep(string questId, string stepId)
         {
-            if (questStatus.ContainsKey(questId) && content.QuestSteps.ContainsKey(stepId)) questStep[questId] = stepId;
+            if (!string.IsNullOrEmpty(questId) && questStatus.ContainsKey(questId) && content.QuestSteps.ContainsKey(stepId))
+                questStep[questId] = stepId;
         }
 
         private void ProcessTriggers(string timing)
@@ -491,9 +616,10 @@ namespace SandPlanet.Prototype
 
         private bool IsInteractionAvailable(SandPlanetInteraction04 i)
         {
+            if (i == null || !i.Active) return false;
             if (day < i.OpenDay || day > i.CloseDay || !TimeSlotAllowed(i)) return false;
             if (!RepeatAvailable(i.Id, i.RepeatRule, interactionsUsed, interactionLastDay)) return false;
-            if (i.InteractionType == "QUEST")
+            if (!string.IsNullOrEmpty(i.QuestId))
             {
                 if (GetQuestStatus(i.QuestId) != "ACTIVE") return false;
                 if (!string.IsNullOrEmpty(i.QuestStepId) && GetQuestStep(i.QuestId) != i.QuestStepId) return false;
@@ -550,7 +676,15 @@ namespace SandPlanet.Prototype
         {
             if (int.TryParse(left, out int li) && int.TryParse(right, out int ri))
             {
-                switch (op) { case "NE": return li != ri; case "GT": return li > ri; case "GE": return li >= ri; case "LT": return li < ri; case "LE": return li <= ri; default: return li == ri; }
+                switch (op)
+                {
+                    case "NE": return li != ri;
+                    case "GT": return li > ri;
+                    case "GE": return li >= ri;
+                    case "LT": return li < ri;
+                    case "LE": return li <= ri;
+                    default: return li == ri;
+                }
             }
             return op == "NE" ? !string.Equals(left, right, StringComparison.OrdinalIgnoreCase) : string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
         }
@@ -574,7 +708,11 @@ namespace SandPlanet.Prototype
             {
                 if (!s.Active || s.CharacterId != characterId || day < s.OpenDay || day > s.CloseDay || !ScheduleTimeAllowed(s)) continue;
                 if (!EvaluatePair(s.ConditionLogic, s.Condition1, s.Condition2)) continue;
-                if (s.Priority >= bestPriority) { bestPriority = s.Priority; best = s.LocationId; }
+                if (s.Priority >= bestPriority)
+                {
+                    bestPriority = s.Priority;
+                    best = s.LocationId;
+                }
             }
             return best;
         }
@@ -594,11 +732,15 @@ namespace SandPlanet.Prototype
                 ShowMessage("21일 결과", BuildDay21Summary());
                 return;
             }
+
             ProcessTriggers("DAY_END");
             day++;
             hour = DayStartHour;
             will = Mathf.Min(maxWill, will + 2);
-            CloseLocation();
+            currentLocationId = null;
+            SetVisible(locationPanel, false);
+            ClearDynamic(targetRoot, targetTemplate);
+            ClearDynamic(interactionRoot, interactionTemplate);
             RefreshHub();
             Log($"Day {day} 시작 / 수면 회복 후 의지 {will}/{maxWill}");
             ProcessTriggers("DAY_START");
@@ -613,56 +755,104 @@ namespace SandPlanet.Prototype
             if (shipInteriorHubRoot != null) shipInteriorHubRoot.SetActive(week3);
         }
 
-        private void ShowQueuedEvent()
-        {
-            if (modalBusy || !string.IsNullOrEmpty(currentLocationId) || eventQueue.Count == 0) return;
-            SandPlanetEvent04 evt = eventQueue.Dequeue();
-            if (!string.IsNullOrEmpty(evt.ChoiceSetId))
-            {
-                ShowChoiceSet(string.IsNullOrEmpty(evt.Title) ? evt.Name : evt.Title, evt.ChoiceSetId, true);
-                if (modalBodyText != null) modalBodyText.text = evt.Body;
-                return;
-            }
-            ShowMessage(string.IsNullOrEmpty(evt.Title) ? evt.Name : evt.Title, evt.Body);
-        }
-
         private void ShowMessage(string title, string body)
         {
+            activeInteraction = null;
+            activeInteractionFlow = null;
+            activeEventFlow = null;
+            activeNodeId = null;
+            pendingEffects = null;
             modalBusy = true;
+            simpleModalCloseAction = CloseModalInternal;
             SetVisible(modalPanel, true);
             ClearDynamic(modalButtonRoot, modalButtonTemplate);
             if (modalTitleText != null) modalTitleText.text = title;
             if (modalBodyText != null) modalBodyText.text = body;
-            CreateButton(modalButtonTemplate, modalButtonRoot, "계속", true, () => { CloseModal(); ShowQueuedEvent(); });
-        }
-
-        private void HandleEscapeFromUx()
-        {
-            if (choiceBeatSequenceActive && pendingChoice != null)
+            CreateButton(modalButtonTemplate, modalButtonRoot, "닫기", true, () =>
             {
-                CommitChoice(pendingChoice, pendingChoiceCheck);
-                return;
-            }
-            CloseModal();
+                CloseModalInternal();
+                ShowQueuedEvent();
+            });
         }
 
-        private void CloseModal()
+        private void CancelActiveFlow()
+        {
+            CloseModalInternal();
+            RefreshUi();
+        }
+
+        private void CloseModalInternal()
         {
             modalBusy = false;
             SetVisible(modalPanel, false);
             ClearDynamic(modalButtonRoot, modalButtonTemplate);
+            activeInteraction = null;
+            activeInteractionFlow = null;
+            activeEventFlow = null;
+            activeNodeId = null;
+            flowCommitted = false;
+            pendingEffects = null;
+            simpleModalCloseAction = null;
+        }
+
+        /// <summary>Called reflectively by the UX enhancer when ESC is pressed.</summary>
+        private void HandleEscapeFromUx()
+        {
+            if (!modalBusy) return;
+            if (activeInteractionFlow != null)
+            {
+                if (!flowCommitted)
+                {
+                    CancelActiveFlow();
+                    return;
+                }
+                SkipLinearRemainderAndFinish();
+                return;
+            }
+            if (activeEventFlow != null)
+            {
+                if (CurrentNodeRows().Count() > 1) return; // forced Event choice cannot be bypassed.
+                SkipLinearRemainderAndFinish();
+                return;
+            }
+            simpleModalCloseAction?.Invoke();
+        }
+
+        private void SkipLinearRemainderAndFinish()
+        {
+            HashSet<string> visited = new HashSet<string>(StringComparer.Ordinal);
+            string nodeId = activeNodeId;
+            while (!string.IsNullOrEmpty(nodeId) && visited.Add(nodeId))
+            {
+                List<SandPlanetFlowNode04> rows = CurrentNodeRows(nodeId).Where(n => n.Active).ToList();
+                if (rows.Count != 1) return;
+                NodeCheck check = CheckNode(rows[0]);
+                if (!check.CanExecute) return;
+                StageNode(rows[0], check.ExtraWillCost);
+                nodeId = rows[0].NextNodeId;
+            }
+            FinalizeActiveFlow();
+        }
+
+        private IEnumerable<SandPlanetFlowNode04> CurrentNodeRows() => CurrentNodeRows(activeNodeId);
+
+        private IEnumerable<SandPlanetFlowNode04> CurrentNodeRows(string nodeId)
+        {
+            if (activeInteractionFlow != null) return activeInteractionFlow.GetNodeRows(nodeId);
+            if (activeEventFlow != null) return activeEventFlow.GetNodeRows(nodeId);
+            return Enumerable.Empty<SandPlanetFlowNode04>();
         }
 
         private string BuildDay21Summary()
         {
-            return "Excel 데이터 기준 Day 21 상태\n\n"
+            return "Excel v1.5 데이터 기준 Day 21 상태\n\n"
                    + $"거주지 보존 {GetState("STA_PRESERVE_SETTLEMENT")}\n"
                    + $"오아시스 보존 {GetState("STA_PRESERVE_OASIS")}\n"
                    + $"묘지 보존 {GetState("STA_PRESERVE_GRAVEYARD")}\n"
                    + $"수송선 외부 보존 {GetState("STA_PRESERVE_SHIP")}\n\n"
                    + $"지휘·항해 안정 {GetState("STA_W3_NAV_STABILITY")} / 보급 안정 {GetState("STA_W3_SUPPLY_STABILITY")}\n"
                    + $"기관·연구 안정 {GetState("STA_W3_TECH_STABILITY")} / 거주 안정 {GetState("STA_W3_HABIT_STABILITY")}\n\n"
-                   + "최종 엔딩 판정식은 아직 TEMP/TBD입니다. 0.4는 Excel → CSV → 21일 상태 연결을 검증합니다.";
+                   + "최종 엔딩 판정식은 아직 TEMP/TBD입니다.";
         }
 
         private void RefreshUi()
@@ -684,7 +874,7 @@ namespace SandPlanet.Prototype
             if (logText != null) logText.text = RecentLogText();
         }
 
-        private static int TypeOrder(string type) { if (type == "MAIN") return 0; if (type == "CHARACTER") return 1; return 2; }
+        private static int TypeOrder(string type) => type == "MAIN" ? 0 : type == "CHARACTER" ? 1 : 2;
         private string GetState(string id) => !string.IsNullOrEmpty(id) && states.TryGetValue(id, out string v) ? v : string.Empty;
         private int GetAffinity(string id) => !string.IsNullOrEmpty(id) && affinity.TryGetValue(id, out int v) ? v : 0;
         private string GetQuestStatus(string id) => !string.IsNullOrEmpty(id) && questStatus.TryGetValue(id, out string v) ? v : "LOCKED";
@@ -708,6 +898,7 @@ namespace SandPlanet.Prototype
         }
 
         private static void SetVisible(GameObject go, bool visible) { if (go != null) go.SetActive(visible); }
+
         private static void ClearDynamic(Transform root, Button template)
         {
             if (root == null) return;
@@ -725,19 +916,48 @@ namespace SandPlanet.Prototype
             Button button = Instantiate(template, root);
             button.gameObject.SetActive(true);
             button.interactable = enabled;
-            Text text = button.GetComponentInChildren<Text>();
-            if (text != null) { text.supportRichText = true; text.text = label; }
+            Text text = button.GetComponentInChildren<Text>(true);
+            if (text != null)
+            {
+                text.supportRichText = true;
+                text.text = label;
+            }
             button.onClick.RemoveAllListeners();
             if (click != null) button.onClick.AddListener(click);
             return button;
         }
 
-        private readonly struct ChoiceCheck
+        private sealed class PendingEffects
+        {
+            public int TimeDelta;
+            public int WillDelta;
+            public int PersonalXpDelta;
+            public int SocialXpDelta;
+            public int TechnicalXpDelta;
+            public readonly Dictionary<string, int> AffinityDelta = new Dictionary<string, int>(StringComparer.Ordinal);
+            public readonly List<SandPlanetStateChange04> StateChanges = new List<SandPlanetStateChange04>();
+            public readonly List<SandPlanetEventNodeMeta04> QuestActions = new List<SandPlanetEventNodeMeta04>();
+            public readonly List<string> EmitEvents = new List<string>();
+            public string ResultText;
+
+            public void AddAffinity(string characterId, int delta)
+            {
+                if (string.IsNullOrEmpty(characterId) || delta == 0) return;
+                AffinityDelta[characterId] = AffinityDelta.TryGetValue(characterId, out int current) ? current + delta : delta;
+            }
+        }
+
+        private readonly struct NodeCheck
         {
             public readonly bool CanExecute;
-            public readonly int TotalWill;
+            public readonly int ExtraWillCost;
             public readonly string Reason;
-            public ChoiceCheck(bool canExecute, int totalWill, string reason) { CanExecute = canExecute; TotalWill = totalWill; Reason = reason; }
+            public NodeCheck(bool canExecute, int extraWillCost, string reason)
+            {
+                CanExecute = canExecute;
+                ExtraWillCost = extraWillCost;
+                Reason = reason;
+            }
         }
     }
 }
