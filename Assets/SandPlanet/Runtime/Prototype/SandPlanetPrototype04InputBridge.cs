@@ -9,11 +9,8 @@ using UnityEngine.InputSystem;
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Input-System-safe world click bridge for Prototype 0.4.
-    /// The original 0.4 controller used UnityEngine.Input for hub raycasts,
-    /// while this project may run with the new Input System only.
-    /// This component mirrors only the world-click portion and leaves all
-    /// CSV / quest / event logic inside SandPlanetPrototype04Controller.
+    /// Input-System-safe world click bridge for Prototype 0.4/v1.5.
+    /// Hub raycasts live here so the data/narrative controller can stay input-system agnostic.
     /// </summary>
     [DefaultExecutionOrder(10000)]
     public sealed class SandPlanetPrototype04InputBridge : MonoBehaviour
@@ -30,15 +27,13 @@ namespace SandPlanet.Prototype
             SandPlanetPrototype04Controller found = FindFirstObjectByType<SandPlanetPrototype04Controller>();
             if (found == null || found.GetComponent<SandPlanetPrototype04InputBridge>() != null)
                 return;
-
             found.gameObject.AddComponent<SandPlanetPrototype04InputBridge>();
         }
 
         private void Awake()
         {
             controller = GetComponent<SandPlanetPrototype04Controller>();
-            if (controller == null)
-                return;
+            if (controller == null) return;
 
             const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
             Type type = typeof(SandPlanetPrototype04Controller);
@@ -48,45 +43,21 @@ namespace SandPlanet.Prototype
             openLocationMethod = type.GetMethod("OpenLocation", flags);
         }
 
-        private void Start()
-        {
-#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
-            // Awake/Start initialization has already run by this execution order.
-            // Disable only MonoBehaviour.Update on the legacy-input controller;
-            // its UI delegates and all gameplay methods remain callable.
-            if (controller != null)
-                controller.enabled = false;
-#endif
-        }
-
         private void Update()
         {
-            if (controller == null || openLocationMethod == null)
-                return;
-
-            if (IsModalBusy() || HasOpenLocation())
-                return;
-
-            if (!TryGetPointerDown(out Vector2 screenPosition))
-                return;
-
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-                return;
+            if (controller == null || openLocationMethod == null) return;
+            if (IsModalBusy() || HasOpenLocation()) return;
+            if (!TryGetPointerDown(out Vector2 screenPosition)) return;
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
             Camera cam = hubCameraField?.GetValue(controller) as Camera;
-            if (cam == null)
-                cam = Camera.main;
-            if (cam == null)
-                return;
+            if (cam == null) cam = Camera.main;
+            if (cam == null) return;
 
             Ray ray = cam.ScreenPointToRay(screenPosition);
-            if (!Physics.Raycast(ray, out RaycastHit hit, 500f))
-                return;
-
+            if (!Physics.Raycast(ray, out RaycastHit hit, 500f)) return;
             PrototypeLocationNode node = hit.collider.GetComponentInParent<PrototypeLocationNode>();
-            if (node == null)
-                return;
-
+            if (node == null) return;
             openLocationMethod.Invoke(controller, new object[] { node.LocationId });
         }
 
