@@ -4,9 +4,6 @@ using System.Linq;
 using SandPlanet.Prototype.DataDriven;
 using UnityEngine;
 using UnityEngine.UI;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace SandPlanet.Prototype
 {
@@ -364,17 +361,9 @@ namespace SandPlanet.Prototype
         private Sprite GetPortraitSprite(SandPlanetCharacter04 character)
         {
             if (portraitCache.TryGetValue(character.Id, out Sprite cached)) return cached;
-#if UNITY_EDITOR
-            Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/SandPlanet/Art/Portraits/" + character.Name + ".png");
-            if (texture != null)
-            {
-                Sprite sprite = Sprite.Create(texture, new Rect(0,0,texture.width,texture.height), new Vector2(.5f,.5f), 100f);
-                portraitCache[character.Id] = sprite;
-                return sprite;
-            }
-#endif
-            portraitCache[character.Id] = null;
-            return null;
+            Sprite sprite = Resources.Load<Sprite>("Portraits/" + character.Name);
+            portraitCache[character.Id] = sprite;
+            return sprite;
         }
 
         private static void ConfigureVerticalRoot(Transform root, float spacing, TextAnchor alignment)
