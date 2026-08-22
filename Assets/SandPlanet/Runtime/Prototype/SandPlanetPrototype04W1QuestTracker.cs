@@ -8,15 +8,15 @@ namespace SandPlanet.Prototype
 {
     /// <summary>
     /// Prototype 0.4 special tracker for the Day 1~2 reunion Main Quest.
-    /// Keeps the normal quest tracker intact and appends a six-name checklist while
-    /// QST_W1_MAIN_01_AWAKE is active. This is intentionally a one-off presentation
-    /// rule rather than a new generic checklist-quest framework.
+    /// Renders a dedicated six-name checklist inside the quest panel while
+    /// QST_W1_MAIN_01_AWAKE is active. This stays a one-off presentation rule,
+    /// not a generic checklist-quest framework.
     /// </summary>
+    [DefaultExecutionOrder(11000)]
     public sealed class SandPlanetPrototype04W1QuestTracker : MonoBehaviour
     {
         private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
         private const string IntroQuestId = "QST_W1_MAIN_01_AWAKE";
-        private const string BlockToken = "\n\n<size=16><color=#8EC5E8><b>— 다시 만난 사람들 —</b></color></size>\n";
 
         private static readonly Entry[] Entries =
         {
@@ -29,10 +29,10 @@ namespace SandPlanet.Prototype
         };
 
         private SandPlanetPrototype04Controller controller;
-        private Text tracker;
         private FieldInfo trackerField;
         private FieldInfo questStatusField;
         private FieldInfo statesField;
+        private Text checklistText;
         private float nextRefresh;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -60,16 +60,56 @@ namespace SandPlanet.Prototype
 
         private void Start()
         {
-            tracker = trackerField?.GetValue(controller) as Text;
-            if (tracker == null) enabled = false;
+            Text baseTracker = trackerField?.GetValue(controller) as Text;
+            if (baseTracker == null || baseTracker.transform.parent == null)
+            {
+                enabled = false;
+                return;
+            }
+
+            Transform parent = baseTracker.transform.parent;
+            Transform existing = parent.Find("UX17_ReunionChecklist");
+            if (existing != null)
+            {
+                checklistText = existing.GetComponent<Text>();
+            }
+            else
+            {
+                GameObject go = new GameObject("UX17_ReunionChecklist", typeof(RectTransform), typeof(Text));
+                go.transform.SetParent(parent, false);
+                checklistText = go.GetComponent<Text>();
+                checklistText.font = baseTracker.font != null
+                    ? baseTracker.font
+                    : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                checklistText.fontSize = 15;
+                checklistText.color = Color.white;
+                checklistText.alignment = TextAnchor.UpperLeft;
+                checklistText.supportRichText = true;
+                checklistText.horizontalOverflow = HorizontalWrapMode.Wrap;
+                checklistText.verticalOverflow = VerticalWrapMode.Overflow;
+                checklistText.raycastTarget = false;
+                checklistText.lineSpacing = 1.05f;
+
+                RectTransform r = checklistText.rectTransform;
+                r.anchorMin = new Vector2(.045f, .05f);
+                r.anchorMax = new Vector2(.955f, .63f);
+                r.offsetMin = Vector2.zero;
+                r.offsetMax = Vector2.zero;
+            }
+
+            checklistText.gameObject.SetActive(false);
+            RefreshChecklist();
         }
 
         private void LateUpdate()
         {
-            if (tracker == null || Time.unscaledTime < nextRefresh) return;
+            if (checklistText == null || Time.unscaledTime < nextRefresh) return;
             nextRefresh = Time.unscaledTime + .10f;
+            RefreshChecklist();
+        }
 
-            string baseText = StripChecklist(tracker.text ?? string.Empty);
+        private void RefreshChecklist()
+        {
             Dictionary<string, string> questStatus = questStatusField?.GetValue(controller) as Dictionary<string, string>;
             Dictionary<string, string> states = statesField?.GetValue(controller) as Dictionary<string, string>;
 
@@ -77,31 +117,20 @@ namespace SandPlanet.Prototype
                           questStatus.TryGetValue(IntroQuestId, out string status) &&
                           string.Equals(status, "ACTIVE", StringComparison.OrdinalIgnoreCase);
 
-            if (!active)
-            {
-                if (!string.Equals(tracker.text, baseText, StringComparison.Ordinal)) tracker.text = baseText;
-                return;
-            }
+            checklistText.gameObject.SetActive(active);
+            if (!active) return;
 
-            string block = BlockToken;
+            string text = "<color=#8EC5E8><b>다시 만날 사람들</b></color>\n";
             foreach (Entry entry in Entries)
             {
                 bool met = states != null &&
                            states.TryGetValue(entry.StateId, out string raw) &&
                            string.Equals(raw, "TRUE", StringComparison.OrdinalIgnoreCase);
-                block += met
+                text += met
                     ? $"<color=#69C77C><b>✓</b></color> {entry.Name}\n"
                     : $"<color=#AAB4BE>□</color> {entry.Name}\n";
             }
-
-            string composed = baseText.TrimEnd() + block.TrimEnd();
-            if (!string.Equals(tracker.text, composed, StringComparison.Ordinal)) tracker.text = composed;
-        }
-
-        private static string StripChecklist(string text)
-        {
-            int index = text.IndexOf(BlockToken, StringComparison.Ordinal);
-            return index >= 0 ? text.Substring(0, index).TrimEnd() : text;
+            checklistText.text = text.TrimEnd();
         }
 
         private readonly struct Entry
