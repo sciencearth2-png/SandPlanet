@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using SandPlanet.Prototype.DataDriven;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 #if UNITY_EDITOR
@@ -19,57 +17,28 @@ namespace SandPlanet.Prototype
     /// </summary>
     public sealed class SandPlanetPrototype04PeoplePanel : MonoBehaviour
     {
-        private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
-
         private static readonly string[] Order =
         {
             "CHA_BENJAMIN", "CHA_FAYE", "CHA_SAM",
             "CHA_JINA", "CHA_BORICHI", "CHA_DIYA"
         };
 
-        private SandPlanetPrototype04Controller controller;
+        private Prototype04RuntimeFacade runtime;
+        private Prototype04NavigationController navigation;
         private SandPlanetContent04 content;
-        private FieldInfo contentField;
-        private FieldInfo affinityField;
-        private FieldInfo statesField;
-        private FieldInfo eventsOccurredField;
-        private FieldInfo modalBusyField;
 
         private Canvas canvas;
         private Button tabButton;
         private GameObject panel;
         private readonly Dictionary<string, CardView> cards = new Dictionary<string, CardView>(StringComparer.Ordinal);
-        private float nextRefresh;
+        public bool IsOpen => panel != null && panel.activeSelf;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void Bootstrap()
+        public void Initialize(Prototype04RuntimeFacade runtimeFacade, Prototype04NavigationController navigationController)
         {
-            SandPlanetPrototype04Controller found = UnityEngine.Object.FindFirstObjectByType<SandPlanetPrototype04Controller>();
-            if (found != null && found.GetComponent<SandPlanetPrototype04PeoplePanel>() == null)
-                found.gameObject.AddComponent<SandPlanetPrototype04PeoplePanel>();
-        }
-
-        private void Awake()
-        {
-            controller = GetComponent<SandPlanetPrototype04Controller>();
-            if (controller == null)
-            {
-                enabled = false;
-                return;
-            }
-
-            Type t = controller.GetType();
-            contentField = t.GetField("content", PrivateInstance);
-            affinityField = t.GetField("affinity", PrivateInstance);
-            statesField = t.GetField("states", PrivateInstance);
-            eventsOccurredField = t.GetField("eventsOccurred", PrivateInstance);
-            modalBusyField = t.GetField("modalBusy", PrivateInstance);
-        }
-
-        private void Start()
-        {
-            content = contentField?.GetValue(controller) as SandPlanetContent04;
-            canvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
+            runtime = runtimeFacade;
+            navigation = navigationController;
+            content = runtime.Content;
+            canvas = runtime.HudText != null ? runtime.HudText.GetComponentInParent<Canvas>() : null;
             if (content == null || canvas == null)
             {
                 enabled = false;
@@ -79,22 +48,19 @@ namespace SandPlanet.Prototype
             CreateTabButton();
             CreatePanel();
             SetOpen(false);
+            runtime.Changed += HandleRuntimeChanged;
         }
 
-        private void Update()
+        private void OnDestroy()
         {
-            if (panel != null && panel.activeSelf &&
-                Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-            {
-                SetOpen(false);
-            }
+            if (runtime != null) runtime.Changed -= HandleRuntimeChanged;
         }
 
-        private void LateUpdate()
+        private void HandleRuntimeChanged()
         {
-            if (panel == null || !panel.activeSelf || Time.unscaledTime < nextRefresh) return;
-            nextRefresh = Time.unscaledTime + .20f;
+            if (!IsOpen) return;
             RefreshCards();
+            panel.transform.SetAsLastSibling();
         }
 
         private void CreateTabButton()
@@ -105,7 +71,7 @@ namespace SandPlanet.Prototype
             r.anchorMin = r.anchorMax = r.pivot = Vector2.one;
             r.anchoredPosition = new Vector2(-18f, -68f);
             r.sizeDelta = new Vector2(165f, 40f);
-            tabButton.onClick.AddListener(() => SetOpen(true));
+            tabButton.onClick.AddListener(Open);
             tabButton.transform.SetAsLastSibling();
         }
 
@@ -135,7 +101,7 @@ namespace SandPlanet.Prototype
             closeRect.anchorMax = new Vector2(.955f, .955f);
             closeRect.offsetMin = Vector2.zero;
             closeRect.offsetMax = Vector2.zero;
-            close.onClick.AddListener(() => SetOpen(false));
+            close.onClick.AddListener(() => navigation.Back());
 
             GameObject holder = new GameObject("Cards", typeof(RectTransform), typeof(GridLayoutGroup));
             holder.transform.SetParent(panel.transform, false);
@@ -209,9 +175,9 @@ namespace SandPlanet.Prototype
 
         private void RefreshCards()
         {
-            Dictionary<string, int> affinity = affinityField?.GetValue(controller) as Dictionary<string, int>;
-            Dictionary<string, string> states = statesField?.GetValue(controller) as Dictionary<string, string>;
-            HashSet<string> occurred = eventsOccurredField?.GetValue(controller) as HashSet<string>;
+            IReadOnlyDictionary<string, int> affinity = runtime.Affinity;
+            IReadOnlyDictionary<string, string> states = runtime.States;
+            HashSet<string> occurred = new HashSet<string>(runtime.EventsOccurred, StringComparer.Ordinal);
 
             foreach (KeyValuePair<string, CardView> pair in cards)
             {
@@ -227,19 +193,22 @@ namespace SandPlanet.Prototype
             }
         }
 
+        public void Open()
+        {
+            if (runtime.ModalBusy) return;
+            SetOpen(true);
+            navigation.NotifyOverlayChanged();
+        }
+
+        public void CloseFromNavigation()
+        {
+            SetOpen(false);
+            navigation.NotifyOverlayChanged();
+        }
+
         private void SetOpen(bool open)
         {
             if (panel == null) return;
-
-            if (open && modalBusyField != null)
-            {
-                try
-                {
-                    if ((bool)modalBusyField.GetValue(controller)) return;
-                }
-                catch { }
-            }
-
             panel.SetActive(open);
             if (open)
             {

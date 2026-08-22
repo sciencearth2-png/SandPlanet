@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,20 +14,10 @@ namespace SandPlanet.Prototype
     /// </summary>
     public sealed class SandPlanetPrototype04OpeningSetup : MonoBehaviour
     {
-        private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
         private const int TotalStartingLevels = 6;
 
+        private Prototype04RuntimeFacade runtime;
         private SandPlanetPrototype04Controller controller;
-        private Type controllerType;
-
-        private FieldInfo personalLevelField;
-        private FieldInfo socialLevelField;
-        private FieldInfo technicalLevelField;
-        private FieldInfo personalXpField;
-        private FieldInfo socialXpField;
-        private FieldInfo technicalXpField;
-        private FieldInfo statesField;
-        private FieldInfo eventsOccurredField;
 
         private GameObject overlay;
         private Text personalValue;
@@ -42,49 +30,22 @@ namespace SandPlanet.Prototype
         private int social = 2;
         private int technical = 2;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void Bootstrap()
+        public void Initialize(Prototype04RuntimeFacade runtimeFacade, SandPlanetPrototype04Controller runtimeController)
         {
-            SandPlanetPrototype04Controller found = UnityEngine.Object.FindFirstObjectByType<SandPlanetPrototype04Controller>();
-            if (found == null || found.GetComponent<SandPlanetPrototype04OpeningSetup>() != null) return;
-
-            // Awake() has already loaded the CSV state. Disabling here prevents Start()
-            // from firing GAME_START until the player confirms the allocation.
-            found.enabled = false;
-            found.gameObject.AddComponent<SandPlanetPrototype04OpeningSetup>();
-        }
-
-        private void Awake()
-        {
-            controller = GetComponent<SandPlanetPrototype04Controller>();
-            if (controller == null)
-            {
-                enabled = false;
-                return;
-            }
-
-            controllerType = controller.GetType();
-            personalLevelField = controllerType.GetField("personalLevel", PrivateInstance);
-            socialLevelField = controllerType.GetField("socialLevel", PrivateInstance);
-            technicalLevelField = controllerType.GetField("technicalLevel", PrivateInstance);
-            personalXpField = controllerType.GetField("personalXp", PrivateInstance);
-            socialXpField = controllerType.GetField("socialXp", PrivateInstance);
-            technicalXpField = controllerType.GetField("technicalXp", PrivateInstance);
-            statesField = controllerType.GetField("states", PrivateInstance);
-            eventsOccurredField = controllerType.GetField("eventsOccurred", PrivateInstance);
+            runtime = runtimeFacade;
+            controller = runtimeController;
         }
 
         private void Start()
         {
             // Safe fallback for entering a scene after the game has already started.
-            HashSet<string> occurred = eventsOccurredField?.GetValue(controller) as HashSet<string>;
-            if (occurred != null && occurred.Count > 0)
+            if (runtime == null || runtime.EventsOccurred.Count > 0)
             {
                 ResumeController();
                 return;
             }
 
-            Canvas canvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
+            Canvas canvas = UnityEngine.Object.FindAnyObjectByType<Canvas>();
             if (canvas == null)
             {
                 Debug.LogWarning("[SandPlanet 0.4] Opening stat setup skipped: Canvas not found.");
@@ -221,22 +182,7 @@ namespace SandPlanet.Prototype
         {
             if (personal + social + technical != TotalStartingLevels) return;
 
-            personalLevelField?.SetValue(controller, personal);
-            socialLevelField?.SetValue(controller, social);
-            technicalLevelField?.SetValue(controller, technical);
-            personalXpField?.SetValue(controller, 0);
-            socialXpField?.SetValue(controller, 0);
-            technicalXpField?.SetValue(controller, 0);
-
-            // Agreed starting future preferences.
-            // The Master sheet should carry the same defaults; this runtime assignment keeps
-            // Prototype 0.4 correct even before the next authoring-data sync.
-            Dictionary<string, string> states = statesField?.GetValue(controller) as Dictionary<string, string>;
-            if (states != null)
-            {
-                states["STA_STANCE_BENJAMIN"] = "STAY";
-                states["STA_STANCE_FAYE"] = "UNDECIDED";
-            }
+            runtime.ApplyStartingStats(personal, social, technical);
 
             if (overlay != null) Destroy(overlay);
             ResumeController();

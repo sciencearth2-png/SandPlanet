@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using SandPlanet.Prototype.DataDriven;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -17,10 +16,8 @@ namespace SandPlanet.Prototype
     /// - Reads PlayerDescription directly from Quests.csv so the core v1.6 data model
     ///   stays backward-compatible; if the column is absent, Summary is used as fallback.
     /// </summary>
-    [DefaultExecutionOrder(11000)]
     public sealed class SandPlanetPrototype04W1QuestTracker : MonoBehaviour
     {
-        private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
         private const string IntroQuestId = "QST_W1_MAIN_01_AWAKE";
         private const string MainColor = "#F0A24A";
         private const string CharacterColor = "#69C77C";
@@ -36,15 +33,9 @@ namespace SandPlanet.Prototype
             new Entry("STA_W1_MET_DIYA", "디야")
         };
 
-        private SandPlanetPrototype04Controller controller;
+        private Prototype04RuntimeFacade runtime;
+        private Prototype04NavigationController navigation;
         private SandPlanetContent04 content;
-
-        private FieldInfo contentField;
-        private FieldInfo trackerField;
-        private FieldInfo questStatusField;
-        private FieldInfo questStepField;
-        private FieldInfo statesField;
-        private FieldInfo csvAssetsField;
 
         private Text baseTracker;
         private RectTransform rowsRoot;
@@ -56,38 +47,14 @@ namespace SandPlanet.Prototype
         private readonly Dictionary<string, string> playerDescriptions = new Dictionary<string, string>(StringComparer.Ordinal);
         private string lastSignature = string.Empty;
         private string currentHoverQuestId = string.Empty;
-        private float nextRefresh;
+        public bool IsDetailOpen => hoverCard != null && hoverCard.activeSelf;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void Bootstrap()
+        public void Initialize(Prototype04RuntimeFacade runtimeFacade, Prototype04NavigationController navigationController)
         {
-            SandPlanetPrototype04Controller found = UnityEngine.Object.FindFirstObjectByType<SandPlanetPrototype04Controller>();
-            if (found != null && found.GetComponent<SandPlanetPrototype04W1QuestTracker>() == null)
-                found.gameObject.AddComponent<SandPlanetPrototype04W1QuestTracker>();
-        }
-
-        private void Awake()
-        {
-            controller = GetComponent<SandPlanetPrototype04Controller>();
-            if (controller == null)
-            {
-                enabled = false;
-                return;
-            }
-
-            Type t = controller.GetType();
-            contentField = t.GetField("content", PrivateInstance);
-            trackerField = t.GetField("questTrackerText", PrivateInstance);
-            questStatusField = t.GetField("questStatus", PrivateInstance);
-            questStepField = t.GetField("questStep", PrivateInstance);
-            statesField = t.GetField("states", PrivateInstance);
-            csvAssetsField = t.GetField("csvAssets", PrivateInstance);
-        }
-
-        private void Start()
-        {
-            content = contentField?.GetValue(controller) as SandPlanetContent04;
-            baseTracker = trackerField?.GetValue(controller) as Text;
+            runtime = runtimeFacade;
+            navigation = navigationController;
+            content = runtime.Content;
+            baseTracker = runtime.QuestTrackerText;
             if (content == null || baseTracker == null || baseTracker.transform.parent == null)
             {
                 enabled = false;
@@ -104,19 +71,20 @@ namespace SandPlanet.Prototype
             baseTracker.raycastTarget = false;
 
             RefreshTracker(true);
+            runtime.Changed += HandleRuntimeChanged;
         }
 
-        private void LateUpdate()
+        private void OnDestroy()
         {
-            if (rowsRoot == null || Time.unscaledTime < nextRefresh) return;
-            nextRefresh = Time.unscaledTime + .10f;
-            RefreshTracker(false);
+            if (runtime != null) runtime.Changed -= HandleRuntimeChanged;
         }
+
+        private void HandleRuntimeChanged() => RefreshTracker(false);
 
         private void LoadPlayerDescriptions()
         {
             playerDescriptions.Clear();
-            TextAsset[] assets = csvAssetsField?.GetValue(controller) as TextAsset[];
+            TextAsset[] assets = runtime.CsvAssets;
             TextAsset questAsset = assets?.FirstOrDefault(a => a != null && string.Equals(a.name, "Quests", StringComparison.OrdinalIgnoreCase));
             if (questAsset == null) return;
 
@@ -200,10 +168,9 @@ namespace SandPlanet.Prototype
 
         private void RefreshTracker(bool force)
         {
-            Dictionary<string, string> status = questStatusField?.GetValue(controller) as Dictionary<string, string>;
-            Dictionary<string, string> steps = questStepField?.GetValue(controller) as Dictionary<string, string>;
-            Dictionary<string, string> states = statesField?.GetValue(controller) as Dictionary<string, string>;
-            if (status == null || steps == null || states == null) return;
+            IReadOnlyDictionary<string, string> status = runtime.QuestStatuses;
+            IReadOnlyDictionary<string, string> steps = runtime.QuestSteps;
+            IReadOnlyDictionary<string, string> states = runtime.States;
 
             List<SandPlanetQuest04> active = content.Quests.Values
                 .Where(q => q.Active && q.TrackerVisible && status.TryGetValue(q.Id, out string s) && string.Equals(s, "ACTIVE", StringComparison.OrdinalIgnoreCase))
@@ -227,7 +194,7 @@ namespace SandPlanet.Prototype
                 HideQuest(currentHoverQuestId);
         }
 
-        private void RebuildRows(List<SandPlanetQuest04> active, Dictionary<string, string> steps, Dictionary<string, string> states)
+        private void RebuildRows(List<SandPlanetQuest04> active, IReadOnlyDictionary<string, string> steps, IReadOnlyDictionary<string, string> states)
         {
             for (int i = rowsRoot.childCount - 1; i >= 0; i--)
                 Destroy(rowsRoot.GetChild(i).gameObject);
@@ -295,7 +262,7 @@ namespace SandPlanet.Prototype
             binding.QuestId = quest.Id;
         }
 
-        private void CreateReunionChecklist(Dictionary<string, string> states, Font font)
+        private void CreateReunionChecklist(IReadOnlyDictionary<string, string> states, Font font)
         {
             GameObject block = new GameObject("ReunionChecklist", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
             block.transform.SetParent(rowsRoot, false);
@@ -324,8 +291,8 @@ namespace SandPlanet.Prototype
             if (hoverCard == null || string.IsNullOrEmpty(questId) || !content.Quests.TryGetValue(questId, out SandPlanetQuest04 quest)) return;
             currentHoverQuestId = questId;
 
-            Dictionary<string, string> steps = questStepField?.GetValue(controller) as Dictionary<string, string>;
-            string stepId = steps != null && steps.TryGetValue(questId, out string sid) ? sid : string.Empty;
+            IReadOnlyDictionary<string, string> steps = runtime.QuestSteps;
+            string stepId = steps.TryGetValue(questId, out string sid) ? sid : string.Empty;
             string objective = content.QuestSteps.TryGetValue(stepId, out SandPlanetQuestStep04 step) ? step.TrackerText : string.Empty;
             string description = playerDescriptions.TryGetValue(questId, out string value) && !string.IsNullOrWhiteSpace(value)
                 ? value
@@ -339,6 +306,7 @@ namespace SandPlanet.Prototype
                 : "<b>현재 목표</b>\n" + objective;
             hoverCard.SetActive(true);
             hoverCard.transform.SetAsLastSibling();
+            navigation.NotifyOverlayChanged();
         }
 
         public void HideQuest(string questId)
@@ -347,7 +315,10 @@ namespace SandPlanet.Prototype
             if (!string.IsNullOrEmpty(questId) && !string.Equals(currentHoverQuestId, questId, StringComparison.Ordinal)) return;
             currentHoverQuestId = string.Empty;
             hoverCard.SetActive(false);
+            navigation.NotifyOverlayChanged();
         }
+
+        public void CloseDetailFromNavigation() => HideQuest(currentHoverQuestId);
 
         private static int TypeOrder(string type)
         {

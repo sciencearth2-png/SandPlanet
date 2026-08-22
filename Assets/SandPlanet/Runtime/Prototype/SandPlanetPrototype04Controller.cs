@@ -87,6 +87,65 @@ namespace SandPlanet.Prototype
         private bool modalBusy;
         private bool evaluatingStateTriggers;
         private Action simpleModalCloseAction;
+        private string simpleModalTitle;
+        private string simpleModalBody;
+        private string selectedTargetType;
+        private string selectedTargetId;
+        private bool consolidatedPresentation;
+
+        public event Action PresentationChanged;
+
+        public SandPlanetContent04 Content => content;
+        public Camera HubCamera => hubCamera;
+        public GameObject LocationPanelObject => locationPanel;
+        public Text LocationTitleText => locationTitleText;
+        public Text LocationHintText => locationHintText;
+        public RectTransform TargetRoot => targetRoot as RectTransform;
+        public Button TargetTemplate => targetTemplate;
+        public Transform InteractionRoot => interactionRoot;
+        public Button InteractionTemplate => interactionTemplate;
+        public Button BackButton => backButton;
+        public GameObject ModalPanelObject => modalPanel;
+        public Text ModalTitleText => modalTitleText;
+        public Text ModalBodyText => modalBodyText;
+        public Transform ModalButtonRoot => modalButtonRoot;
+        public Button ModalButtonTemplate => modalButtonTemplate;
+        public Text HudText => hudText;
+        public Text QuestTrackerText => questTrackerText;
+        public Text LogText => logText;
+        public Button EndDayButton => endDayButton;
+        public TextAsset[] CsvAssets => csvAssets;
+        public int Day => day;
+        public int Hour => hour;
+        public int Will => will;
+        public int MaxWill => maxWill;
+        public int PersonalLevel => personalLevel;
+        public int PersonalXp => personalXp;
+        public int SocialLevel => socialLevel;
+        public int SocialXp => socialXp;
+        public int TechnicalLevel => technicalLevel;
+        public int TechnicalXp => technicalXp;
+        public string CurrentLocationId => currentLocationId ?? string.Empty;
+        public string SelectedTargetType => selectedTargetType ?? string.Empty;
+        public string SelectedTargetId => selectedTargetId ?? string.Empty;
+        public bool ModalBusy => modalBusy;
+        public bool HasActiveInteractionFlow => activeInteractionFlow != null;
+        public bool HasActiveEventFlow => activeEventFlow != null;
+        public bool FlowCommitted => flowCommitted;
+        public SandPlanetInteraction04 ActiveInteraction => activeInteraction;
+        public string SimpleModalTitle => simpleModalTitle ?? string.Empty;
+        public string SimpleModalBody => simpleModalBody ?? string.Empty;
+        public IReadOnlyDictionary<string, int> Affinity => affinity;
+        public IReadOnlyDictionary<string, string> States => states;
+        public IReadOnlyDictionary<string, string> QuestStatuses => questStatus;
+        public IReadOnlyDictionary<string, string> QuestSteps => questStep;
+        public IReadOnlyCollection<string> EventsOccurred => eventsOccurred;
+
+        public void EnableConsolidatedPresentation()
+        {
+            consolidatedPresentation = true;
+            NotifyPresentationChanged();
+        }
 
         public void Configure(
             TextAsset[] dataFiles, Camera camera, GameObject planetRoot, GameObject shipRoot,
@@ -170,34 +229,51 @@ namespace SandPlanet.Prototype
             if (modalButtonTemplate != null) modalButtonTemplate.gameObject.SetActive(false);
         }
 
-        private void OpenLocation(string locationId)
+        public void OpenLocation(string locationId)
         {
             if (modalBusy) return;
             if (!content.Locations.TryGetValue(locationId, out SandPlanetLocation04 location) || !location.Active) return;
             currentLocationId = locationId;
-            SetVisible(locationPanel, true);
-            if (locationTitleText != null) locationTitleText.text = location.Name;
-            if (locationHintText != null) locationHintText.text = "사람/사물을 선택하면 현재 가능한 상호작용이 표시됩니다.";
+            selectedTargetType = null;
+            selectedTargetId = null;
+            if (!consolidatedPresentation)
+            {
+                SetVisible(locationPanel, true);
+                if (locationTitleText != null) locationTitleText.text = location.Name;
+                if (locationHintText != null) locationHintText.text = "사람/사물을 선택하면 현재 가능한 상호작용이 표시됩니다.";
+            }
             RefreshTargets();
-            ClearDynamic(interactionRoot, interactionTemplate);
+            if (!consolidatedPresentation) ClearDynamic(interactionRoot, interactionTemplate);
             Log("장소 진입: " + location.Name);
             RefreshUi();
+            NotifyPresentationChanged();
         }
 
-        private void CloseLocation()
+        public void CloseLocation()
         {
             if (modalBusy) return;
             currentLocationId = null;
+            selectedTargetType = null;
+            selectedTargetId = null;
             activeInteraction = null;
-            SetVisible(locationPanel, false);
-            ClearDynamic(targetRoot, targetTemplate);
-            ClearDynamic(interactionRoot, interactionTemplate);
+            if (!consolidatedPresentation) SetVisible(locationPanel, false);
+            if (!consolidatedPresentation)
+            {
+                ClearDynamic(targetRoot, targetTemplate);
+                ClearDynamic(interactionRoot, interactionTemplate);
+            }
             RefreshUi();
             ShowQueuedEvent();
+            NotifyPresentationChanged();
         }
 
         private void RefreshTargets()
         {
+            if (consolidatedPresentation)
+            {
+                NotifyPresentationChanged();
+                return;
+            }
             ClearDynamic(targetRoot, targetTemplate);
             if (string.IsNullOrEmpty(currentLocationId)) return;
 
@@ -243,7 +319,7 @@ namespace SandPlanet.Prototype
             if (exists) output.Add($"<color={color}><b>{marker}</b></color>");
         }
 
-        private void SelectTarget(string type, string id)
+        public void SelectTarget(string type, string id)
         {
             List<SandPlanetInteraction04> list = GetAvailableInteractions(type, id)
                 .OrderByDescending(i => QuestRoleOrder(NormalizeQuestRole(i)))
@@ -252,9 +328,17 @@ namespace SandPlanet.Prototype
                 .ToList();
 
             SandPlanetInteraction04 direct = list.FirstOrDefault(i => i.EntryMode == "DIRECT_CLICK");
+            selectedTargetType = type;
+            selectedTargetId = id;
             if (direct != null)
             {
                 BeginInteraction(direct);
+                return;
+            }
+
+            if (consolidatedPresentation)
+            {
+                NotifyPresentationChanged();
                 return;
             }
 
@@ -273,6 +357,21 @@ namespace SandPlanet.Prototype
                 string badge = InteractionBadge(interaction);
                 CreateButton(interactionTemplate, interactionRoot, badge + worldMarker + interaction.DisplayText, true, () => BeginInteraction(captured));
             }
+        }
+
+        public void DismissTargetSelection()
+        {
+            if (modalBusy) return;
+            selectedTargetType = null;
+            selectedTargetId = null;
+            activeInteraction = null;
+            if (!consolidatedPresentation)
+            {
+                ClearDynamic(interactionRoot, interactionTemplate);
+                if (locationHintText != null)
+                    locationHintText.text = "사람/사물을 선택하면 현재 가능한 상호작용이 표시됩니다.";
+            }
+            NotifyPresentationChanged();
         }
 
         private string InteractionBadge(SandPlanetInteraction04 interaction)
@@ -309,14 +408,14 @@ namespace SandPlanet.Prototype
             return SideColor;
         }
 
-        private List<SandPlanetInteraction04> GetAvailableInteractions(string targetType, string targetId)
+        public List<SandPlanetInteraction04> GetAvailableInteractions(string targetType, string targetId)
         {
             return content.Interactions
                 .Where(i => i.Active && i.TargetType == targetType && i.TargetId == targetId && IsInteractionAvailable(i))
                 .ToList();
         }
 
-        private void BeginInteraction(SandPlanetInteraction04 interaction)
+        public void BeginInteraction(SandPlanetInteraction04 interaction)
         {
             if (interaction == null || interaction.Flow == null) return;
             activeInteraction = interaction;
@@ -327,7 +426,7 @@ namespace SandPlanet.Prototype
             pendingEffects = new PendingEffects();
             simpleModalCloseAction = null;
             modalBusy = true;
-            SetVisible(modalPanel, true);
+            if (!consolidatedPresentation) SetVisible(modalPanel, true);
             ShowCurrentFlowNode();
         }
 
@@ -342,7 +441,7 @@ namespace SandPlanet.Prototype
             pendingEffects = new PendingEffects();
             simpleModalCloseAction = null;
             modalBusy = true;
-            SetVisible(modalPanel, true);
+            if (!consolidatedPresentation) SetVisible(modalPanel, true);
             ShowCurrentFlowNode();
         }
 
@@ -355,6 +454,11 @@ namespace SandPlanet.Prototype
                 return;
             }
 
+            if (consolidatedPresentation)
+            {
+                NotifyPresentationChanged();
+                return;
+            }
             ClearDynamic(modalButtonRoot, modalButtonTemplate);
             if (modalTitleText != null)
                 modalTitleText.text = activeInteractionFlow != null ? activeInteraction.DisplayText : activeEventFlow.Name;
@@ -476,13 +580,16 @@ namespace SandPlanet.Prototype
             }
 
             if (!string.IsNullOrEmpty(effects.ResultText)) Log(effects.ResultText);
+            selectedTargetType = null;
+            selectedTargetId = null;
             if (!string.IsNullOrEmpty(currentLocationId))
             {
                 RefreshTargets();
-                ClearDynamic(interactionRoot, interactionTemplate);
+                if (!consolidatedPresentation) ClearDynamic(interactionRoot, interactionTemplate);
             }
             RefreshUi();
             ShowQueuedEvent();
+            NotifyPresentationChanged();
         }
 
         private void ApplyPendingEffects(PendingEffects effects)
@@ -674,7 +781,7 @@ namespace SandPlanet.Prototype
             }
         }
 
-        private bool IsInteractionAvailable(SandPlanetInteraction04 i)
+        public bool IsInteractionAvailable(SandPlanetInteraction04 i)
         {
             if (i == null || !i.Active) return false;
             if (day < i.OpenDay || day > i.CloseDay || !TimeSlotAllowed(i)) return false;
@@ -772,7 +879,7 @@ namespace SandPlanet.Prototype
             evaluatingStateTriggers = false;
         }
 
-        private string GetCharacterLocation(string characterId)
+        public string GetCharacterLocation(string characterId)
         {
             if (!content.Characters.TryGetValue(characterId, out SandPlanetCharacter04 character)) return string.Empty;
             string best = character.DefaultLocationId;
@@ -811,14 +918,20 @@ namespace SandPlanet.Prototype
             hour = DayStartHour;
             will = Mathf.Min(maxWill, will + 2);
             currentLocationId = null;
-            SetVisible(locationPanel, false);
-            ClearDynamic(targetRoot, targetTemplate);
-            ClearDynamic(interactionRoot, interactionTemplate);
+            selectedTargetType = null;
+            selectedTargetId = null;
+            if (!consolidatedPresentation) SetVisible(locationPanel, false);
+            if (!consolidatedPresentation)
+            {
+                ClearDynamic(targetRoot, targetTemplate);
+                ClearDynamic(interactionRoot, interactionTemplate);
+            }
             RefreshHub();
             Log($"Day {day} 시작 / 수면 회복 후 의지 {will}/{maxWill}");
             ProcessTriggers("DAY_START");
             RefreshUi();
             ShowQueuedEvent();
+            NotifyPresentationChanged();
         }
 
         private void RefreshHub()
@@ -837,8 +950,15 @@ namespace SandPlanet.Prototype
             pendingEffects = null;
             modalBusy = true;
             simpleModalCloseAction = CloseModalInternal;
-            SetVisible(modalPanel, true);
-            ClearDynamic(modalButtonRoot, modalButtonTemplate);
+            simpleModalTitle = title;
+            simpleModalBody = body;
+            if (!consolidatedPresentation) SetVisible(modalPanel, true);
+            if (consolidatedPresentation)
+            {
+                NotifyPresentationChanged();
+                return;
+            }
+            if (!consolidatedPresentation) ClearDynamic(modalButtonRoot, modalButtonTemplate);
             if (modalTitleText != null) modalTitleText.text = title;
             if (modalBodyText != null) modalBodyText.text = body;
             CreateButton(modalButtonTemplate, modalButtonRoot, "닫기", true, () =>
@@ -848,7 +968,7 @@ namespace SandPlanet.Prototype
             });
         }
 
-        private void CancelActiveFlow()
+        public void CancelActiveFlow()
         {
             CloseModalInternal();
             RefreshUi();
@@ -857,8 +977,8 @@ namespace SandPlanet.Prototype
         private void CloseModalInternal()
         {
             modalBusy = false;
-            SetVisible(modalPanel, false);
-            ClearDynamic(modalButtonRoot, modalButtonTemplate);
+            if (!consolidatedPresentation) SetVisible(modalPanel, false);
+            if (!consolidatedPresentation) ClearDynamic(modalButtonRoot, modalButtonTemplate);
             activeInteraction = null;
             activeInteractionFlow = null;
             activeEventFlow = null;
@@ -866,10 +986,12 @@ namespace SandPlanet.Prototype
             flowCommitted = false;
             pendingEffects = null;
             simpleModalCloseAction = null;
+            simpleModalTitle = null;
+            simpleModalBody = null;
+            NotifyPresentationChanged();
         }
 
-        /// <summary>Called reflectively by the UX enhancer when ESC is pressed.</summary>
-        private void HandleEscapeFromUx()
+        public void HandleBackFromNavigation()
         {
             if (!modalBusy) return;
             if (activeInteractionFlow != null)
@@ -890,6 +1012,58 @@ namespace SandPlanet.Prototype
             }
             simpleModalCloseAction?.Invoke();
         }
+
+        public void CloseSimpleModal()
+        {
+            if (activeInteractionFlow != null || activeEventFlow != null) return;
+            simpleModalCloseAction?.Invoke();
+            ShowQueuedEvent();
+        }
+
+        public bool IsForcedEventChoice()
+        {
+            return activeEventFlow != null && CurrentNodeRows().Where(n => n.Active).Count() > 1;
+        }
+
+        public IReadOnlyList<SandPlanetFlowNode04> CurrentFlowRows()
+        {
+            return CurrentNodeRows().Where(n => n.Active).ToList();
+        }
+
+        public string CurrentFlowTitle()
+        {
+            if (activeInteractionFlow != null && activeInteraction != null) return activeInteraction.DisplayText;
+            return activeEventFlow != null ? activeEventFlow.Name : SimpleModalTitle;
+        }
+
+        public string CurrentFlowBody()
+        {
+            if (activeInteractionFlow == null && activeEventFlow == null) return SimpleModalBody;
+            List<SandPlanetFlowNode04> rows = CurrentNodeRows().Where(n => n.Active).ToList();
+            if (rows.Count == 0) return string.Empty;
+            bool sameBody = rows.Select(r => r.BodyText ?? string.Empty).Distinct().Count() <= 1;
+            if (rows.Count > 1 && !sameBody)
+                return activeInteractionFlow != null ? activeInteraction.DisplayText : activeEventFlow.PlayerPerceivedChange;
+            return FormatNodeBody(rows[0]);
+        }
+
+        public string CurrentSpeakerCharacterId()
+        {
+            SandPlanetFlowNode04 row = CurrentNodeRows().FirstOrDefault(n => n.Active);
+            if (row == null || !string.Equals(row.PresentationType, "DIALOGUE", StringComparison.OrdinalIgnoreCase))
+                return string.Empty;
+            return content.Characters.ContainsKey(row.Speaker ?? string.Empty) ? row.Speaker : string.Empty;
+        }
+
+        public bool CanExecuteNode(SandPlanetFlowNode04 node, out string reason, out string costLabel)
+        {
+            NodeCheck check = CheckNode(node);
+            reason = check.Reason;
+            costLabel = BuildCostLabel(node, check);
+            return check.CanExecute;
+        }
+
+        public void ExecuteNode(SandPlanetFlowNode04 node) => ChooseNode(node);
 
         private void SkipLinearRemainderAndFinish()
         {
@@ -930,9 +1104,9 @@ namespace SandPlanet.Prototype
 
         private void RefreshUi()
         {
-            if (hudText != null)
+            if (!consolidatedPresentation && hudText != null)
                 hudText.text = $"DAY {day:00}  {hour:00}:00   |   의지 {will}/{maxWill}   |   개인 Lv{personalLevel} {personalXp}/6   대인 Lv{socialLevel} {socialXp}/6   기술 Lv{technicalLevel} {technicalXp}/6   |   {(day >= 15 ? "수송선 내부" : "모래 행성")}";
-            if (questTrackerText != null)
+            if (!consolidatedPresentation && questTrackerText != null)
             {
                 List<string> lines = new List<string> { "[진행 중 Quest]" };
                 foreach (SandPlanetQuest04 q in content.Quests.Values.Where(q => q.TrackerVisible && GetQuestStatus(q.Id) == "ACTIVE").OrderBy(q => TypeOrder(q.Type)).ThenBy(q => q.LogOrder).ThenBy(q => q.Title))
@@ -948,13 +1122,14 @@ namespace SandPlanet.Prototype
                 questTrackerText.text = string.Join("\n", lines);
             }
             if (logText != null) logText.text = RecentLogText();
+            NotifyPresentationChanged();
         }
 
         private static int TypeOrder(string type) => type == "MAIN" ? 0 : type == "CHARACTER" ? 1 : 2;
-        private string GetState(string id) => !string.IsNullOrEmpty(id) && states.TryGetValue(id, out string v) ? v : string.Empty;
-        private int GetAffinity(string id) => !string.IsNullOrEmpty(id) && affinity.TryGetValue(id, out int v) ? v : 0;
-        private string GetQuestStatus(string id) => !string.IsNullOrEmpty(id) && questStatus.TryGetValue(id, out string v) ? v : "LOCKED";
-        private string GetQuestStep(string id) => !string.IsNullOrEmpty(id) && questStep.TryGetValue(id, out string v) ? v : string.Empty;
+        public string GetState(string id) => !string.IsNullOrEmpty(id) && states.TryGetValue(id, out string v) ? v : string.Empty;
+        public int GetAffinity(string id) => !string.IsNullOrEmpty(id) && affinity.TryGetValue(id, out int v) ? v : 0;
+        public string GetQuestStatus(string id) => !string.IsNullOrEmpty(id) && questStatus.TryGetValue(id, out string v) ? v : "LOCKED";
+        public string GetQuestStep(string id) => !string.IsNullOrEmpty(id) && questStep.TryGetValue(id, out string v) ? v : string.Empty;
         private int GetStatLevel(string stat) { if (stat == "PERSONAL") return personalLevel; if (stat == "SOCIAL" || stat == "INTERPERSONAL") return socialLevel; if (stat == "TECHNICAL") return technicalLevel; return 0; }
         private string GetTargetName(string type, string id) { if (type == "CHARACTER" && content.Characters.TryGetValue(id, out SandPlanetCharacter04 c)) return c.Name; if (type == "WORLD_TARGET" && content.WorldTargets.TryGetValue(id, out SandPlanetWorldTarget04 w)) return w.Name; return id; }
         private static int ParseInt(string value) => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int v) ? v : 0;
@@ -974,6 +1149,35 @@ namespace SandPlanet.Prototype
         }
 
         private static void SetVisible(GameObject go, bool visible) { if (go != null) go.SetActive(visible); }
+
+        public void ApplyStartingStats(int personal, int social, int technical)
+        {
+            personalLevel = personal;
+            socialLevel = social;
+            technicalLevel = technical;
+            personalXp = 0;
+            socialXp = 0;
+            technicalXp = 0;
+            states["STA_STANCE_BENJAMIN"] = "STAY";
+            states["STA_STANCE_FAYE"] = "UNDECIDED";
+            NotifyPresentationChanged();
+        }
+
+        public IReadOnlyList<Prototype04TargetViewModel> CurrentTargets()
+        {
+            List<Prototype04TargetViewModel> result = new List<Prototype04TargetViewModel>();
+            if (string.IsNullOrEmpty(currentLocationId) || content == null) return result;
+            foreach (SandPlanetCharacter04 c in content.Characters.Values.Where(c => c.Active && GetCharacterLocation(c.Id) == currentLocationId).OrderBy(c => c.Name))
+                result.Add(new Prototype04TargetViewModel("CHARACTER", c.Id, c.Name));
+            foreach (SandPlanetWorldTarget04 w in content.WorldTargets.Values.Where(w => w.Active && w.Clickable && w.LocationId == currentLocationId).OrderBy(w => w.Name))
+                result.Add(new Prototype04TargetViewModel("WORLD_TARGET", w.Id, w.Name));
+            return result;
+        }
+
+        private void NotifyPresentationChanged()
+        {
+            if (consolidatedPresentation) PresentationChanged?.Invoke();
+        }
 
         private static void ClearDynamic(Transform root, Button template)
         {
