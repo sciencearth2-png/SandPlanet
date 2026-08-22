@@ -9,8 +9,9 @@ using UnityEngine.InputSystem;
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Input-System-safe world click bridge for Prototype 0.4/v1.5.
+    /// Input-System-safe world click bridge for Prototype 0.4/v1.7.
     /// Hub raycasts live here so the data/narrative controller can stay input-system agnostic.
+    /// Clicking the visible world while a location panel is open closes that panel.
     /// </summary>
     [DefaultExecutionOrder(10000)]
     public sealed class SandPlanetPrototype04InputBridge : MonoBehaviour
@@ -20,6 +21,7 @@ namespace SandPlanet.Prototype
         private FieldInfo currentLocationIdField;
         private FieldInfo hubCameraField;
         private MethodInfo openLocationMethod;
+        private MethodInfo closeLocationMethod;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -41,14 +43,23 @@ namespace SandPlanet.Prototype
             currentLocationIdField = type.GetField("currentLocationId", flags);
             hubCameraField = type.GetField("hubCamera", flags);
             openLocationMethod = type.GetMethod("OpenLocation", flags);
+            closeLocationMethod = type.GetMethod("CloseLocation", flags);
         }
 
         private void Update()
         {
             if (controller == null || openLocationMethod == null) return;
-            if (IsModalBusy() || HasOpenLocation()) return;
+            if (IsModalBusy()) return;
             if (!TryGetPointerDown(out Vector2 screenPosition)) return;
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+
+            // Location panel is intentionally non-modal. A click on the visible map/background
+            // should dismiss it instead of forcing the player to move to the ESC/Back button.
+            if (HasOpenLocation())
+            {
+                closeLocationMethod?.Invoke(controller, null);
+                return;
+            }
 
             Camera cam = hubCameraField?.GetValue(controller) as Camera;
             if (cam == null) cam = Camera.main;
