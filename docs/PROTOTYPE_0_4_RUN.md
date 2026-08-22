@@ -1,19 +1,15 @@
 # SandPlanet Prototype 0.4 — Data Driven / Authoring v1.6
 
-Prototype 0.4 keeps Prototype 0.1–0.3 intact and provides an Excel/CSV-driven vertical slice. The scene name remains 0.4, while the current authoring contract is **v1.6 Quest Roles**.
+Prototype 0.4 is the current and only active prototype target. It provides an Excel/CSV-driven vertical slice using the integrated Interaction/Event/Quest/State flow.
 
 ## Authoritative content
-
-The development authoring source is:
-
+Development authoring source:
 `Assets/SandPlanet/Data/Authoring/SandPlanet_Master.xlsx`
 
-Generated runtime CSV lives in:
-
+Generated runtime CSV:
 `Assets/SandPlanet/Data/Generated/CSV/`
 
 Runtime sheets:
-
 - `01_장소` → `Locations.csv`
 - `02_캐릭터` → `Characters.csv`
 - `03_사물·상호작용 대상` → `WorldTargets.csv`
@@ -25,128 +21,107 @@ Runtime sheets:
 - `09_이벤트 트리거` → `EventTriggers.csv`
 - `10_NPC 일정` → `NpcSchedules.csv`
 
-`Choices.csv` and `ChoiceBeats.csv` are legacy placeholder assets only. v1.6 runtime does not read them.
+`Choices.csv`와 `ChoiceBeats.csv`는 현재 runtime이 읽지 않는 placeholder다.
 
-The exporter searches for each sheet's machine header key (`LocationID`, `QuestID`, `FlowID`, etc.) instead of depending on a fixed row number.
+## Quest rule
+Quest 상태는 Day/State/condition이 참이 되었다는 이유만으로 자동 변경하지 않는다.
 
-## v1.6 quest rule
+합법적인 mutation 경로:
+- Interaction 결과의 `QuestAction`
+- Event Flow 결과의 `QuestAction`
 
-Quest state is never mutated merely because a Day/State/condition became true.
-
-Legal mutation paths are:
-
-- player selects an Interaction result with `QuestAction`, or
-- an Event Flow result has `QuestAction`.
-
-Event Trigger only decides when an Event occurs. QuestStep may still react to a fired Event through `ProgressEventID`, which is an Event-driven update rather than an implicit condition update.
+Event Trigger는 Event 발생 시점만 결정한다.
 
 Interaction `QuestRole`:
+- `NONE`: 일반 행동
+- `OFFER`: linked Quest가 LOCKED일 때 수락 진입
+- `PROGRESS`: linked Quest가 ACTIVE이고 현재 Step이 맞을 때 진행 진입
 
-- `NONE`: ordinary action
-- `OFFER`: linked Quest must be `LOCKED`; UI shows `?`
-- `PROGRESS`: linked Quest must be `ACTIVE` and its current Step must match; UI shows `!`
-
-Target/entry UI derives type and role automatically:
-
-- MAIN orange: `?` / `!`, entry `[MAIN ?]` / `[MAIN !]`
-- CHARACTER green: `?` / `!`, entry `[CHAR ?]` / `[CHAR !]`
-- SIDE light yellow: `?` / `!`, entry `[SIDE ?]` / `[SIDE !]`
-- ordinary action: `[일상]`
-
-Character Quest is reserved for one long-running quasi-main arc per major character. Smaller one-off content should be SIDE.
+Quest type UI:
+- MAIN: orange
+- CHARACTER: green
+- SIDE: pale yellow
+- OFFER `?`, PROGRESS `!`
 
 ## Excel → CSV workflow
+정상적인 authoring 수정:
+1. `Tools > SandPlanet > Data v1.6 > Export Master Excel to CSV`
+2. `Tools > SandPlanet > Data v1.6 > Validate Generated CSV`
+3. 기존 `Assets/Scenes/SandPlanet_Prototype_04.unity`에서 테스트
 
-Saving/replacing `SandPlanet_Master.xlsx` under `Assets` automatically runs the exporter on Unity reimport.
-
-Manual commands:
-
-- `Tools > SandPlanet > Data v1.6 > Export Master Excel to CSV`
-- `Tools > SandPlanet > Data v1.6 > Validate Generated CSV`
-
-Compatibility aliases under `Tools > SandPlanet > Data 0.4` are still available.
-
-The exporter reads XLSX OpenXML directly using .NET ZIP/XML APIs. No Excel installation, Python package, or external converter is required by Unity.
-
-Validation additionally checks:
-
-- `QuestRole` is `NONE / OFFER / PROGRESS`
-- OFFER has an explicit `ACTIVATE_QUEST` result
-- Interaction/Event QuestAction targets an existing Quest
-- `SET_QUEST_STEP` points to a Step owned by that Quest
-- quest-acceptance Interaction costs at least 1 hour
-- Character Quest IDs follow `QST_CHAR_...`
+`Tools > SandPlanet > Generate Prototype 0.4`는 scene 구조 자체를 재생성해야 할 때만 사용한다. 일반 데이터/UI/런타임 수정 때문에 실행하지 않는다.
 
 ## Prototype scene
-
-Existing scene:
-
 `Assets/Scenes/SandPlanet_Prototype_04.unity`
 
-The v1.6 exporter deliberately keeps the same runtime CSV asset paths, so **normal v1.6 content changes do not require regenerating the scene**.
-
-Use `Tools > SandPlanet > Generate Prototype 0.4` only when the actual generated scene structure needs rebuilding, such as changes to the eight greybox location nodes.
-
-### Map roots
-
-Day 1–14 uses `PlanetHubRoot_Day01_14`:
-
+### Day 1–14 planet hub
+`PlanetHubRoot_Day01_14`
 - LOC_01_SETTLEMENT — 거주지
 - LOC_02_SHIP — 수송선
 - LOC_03_GRAVEYARD — 묘지
 - LOC_04_OASIS — 오아시스
 
-Day 15–21 uses `ShipInteriorHubRoot_Day15_21`:
-
+### Day 15–21 ship interior hub
+`ShipInteriorHubRoot_Day15_21`
 - LOC_05_COMMAND — 지휘·항해
 - LOC_06_SUPPLY — 보급·생명유지
 - LOC_07_TECH — 기관·연구
 - LOC_08_HABIT — 거주
 
 ## Runtime scope
-
 Implemented:
-
-- 21-day clock, 08:00–22:00 actions
+- 21-day clock
 - sleep/day advance and Will recovery
 - Personal / Social / Technical Level + XP
-- progress-bar HUD for time, Will, and all three XP tracks
-- integrated Interaction/Event narrative nodes
-- dialogue / narration / choice → next-node flow
-- Time / Will / XP / affinity / State results
-- Interaction affinity up to two characters; Event affinity across six principal characters
+- Interaction/Event integrated narrative flow
+- dialogue / narration / choice → next node
+- Time / Will / XP / Affinity / State results
 - Quest LOCKED → ACTIVE → COMPLETED / FAILED
-- explicit Interaction/Event `QuestAction`
-- `QuestRole` OFFER/PROGRESS availability rules
-- QuestStep Event progression
+- explicit `QuestAction`
+- QuestRole OFFER/PROGRESS availability
+- QuestStep progression
 - Event Trigger processing
 - ONCE / DAILY / UNLIMITED repeat rules
-- NPC schedule-based location override
-- target UI quest `? / !` markers and typed interaction labels
-- Day 15 planet → ship interior map switch
-- Day 21 preservation/stability summary
+- NPC schedule location override
+- target Quest markers
+- Day 15 hub switch
+- Day 21 summary hooks
 - new Input System world-click bridge
-- ESC popup/location handling
+- ESC/back handling
+- Week 1 starting stat allocation UI
+- People panel
+- Quest hover detail and W1 six-person checklist
+- character portraits
+- location map-style target placement / clipping / focus zoom
+- right-side Interaction/Narrative presentation
 
-Current prototype limitations / TEMP:
+## Current UI contract
+- Location viewport is opaque and sits above Quest/Log while open.
+- Location title is upper-left.
+- Character/object targets are distributed like a map and clipped by the viewport boundary.
+- Browse scale 1.5x; target focus 2.0x.
+- Opening narrative from a selected target must not unexpectedly rearrange the left map.
+- Interaction selection and Narrative use the right-side panel area.
+- Character portrait can appear during Interaction selection and character dialogue.
+- ESC closes the topmost interaction layer first rather than collapsing multiple layers in one press.
+- Narrative typography has been increased for readability.
 
-- final ending evaluator is not fixed yet
-- Week 3 interior is greybox only
-- WORLD_MARKER is represented in the interaction UI rather than a dedicated 3D marker
-- DetectorType/DetectorID are stored, while current prototype trigger execution primarily relies on timing + validation conditions
-- some Week 3 character starting stances are still TEMP in the authoring workbook
-- final compile/play verification must be done in the local Unity 6000.4.1f1 project
+## Known technical debt
+Several Prototype04 presentation components currently write overlapping UI properties via Reflection, execution order, `LateUpdate`, and `Canvas.willRenderCanvases`. This is the subject of the upcoming audit/refactor. Do not add another patch/override layer before that audit unless explicitly requested.
 
-## v1.6 smoke test
+## Current limitations / TEMP
+- final ending evaluator thresholds are not fixed
+- Week 3 interior is greybox
+- some stance/balance values are TEMP
+- final Soft Requirement formula is TBD
+- Unity compile/play verification must be performed in the local Unity project
 
+## Smoke test
 1. Pull `prototype-foundation` and wait for Unity compile/import.
-2. Put the v1.6 workbook at `Assets/SandPlanet/Data/Authoring/SandPlanet_Master.xlsx`.
-3. Run `Tools > SandPlanet > Data v1.6 > Export Master Excel to CSV` and confirm validation passes.
-4. Open the existing `Assets/Scenes/SandPlanet_Prototype_04.unity`; do not regenerate it for this test.
-5. Play Day 1 and confirm the Main wake-up Event/Interaction flow still works.
-6. Advance to Day 2. An unaccepted Character Quest target should show a **green `?`**.
-7. Click that target and confirm an entry such as `[CHAR ?] ...` appears.
-8. Accept it. The authored 1 hour should pass, Quest should become ACTIVE, and the same target should refresh to a **green `!`** with `[CHAR !] ...` progress entry.
-9. Confirm MAIN markers are orange and SIDE markers are light yellow.
-10. Confirm the Quest tracker contains the six long Character arcs rather than separate Week-by-Week Character quests.
-11. Continue through Day 15 map switch and Day 21 summary for broader regression testing.
+2. Use the existing Prototype04 scene; do not regenerate it.
+3. Confirm game-start stat allocation → GAME_START flow.
+4. Enter a location and verify characters/objects, right-side interaction UI, portrait, clipping and focus behavior.
+5. Accept a Character Quest and verify `? → !`, time cost, ACTIVE state and tracker update.
+6. Verify Interaction/Event results change time/will/xp/affinity/state/quest as authored.
+7. Verify ESC closes only the topmost UI layer per press.
+8. Continue through Day 15 hub switch and broader Week 3 hooks when regression testing the full loop.
