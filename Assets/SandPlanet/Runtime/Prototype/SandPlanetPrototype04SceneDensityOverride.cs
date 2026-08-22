@@ -8,16 +8,17 @@ namespace SandPlanet.Prototype
 {
     /// <summary>
     /// Final scene-density scale authority.
-    /// The approved redistributed map composition is now the default 2.0x browse state.
-    /// Selecting a target adds only a modest extra zoom so the map remains readable.
+    /// The redistributed map composition stays the same, but the browse scale returns
+    /// to the stable 1.5x value so the whole scene remains readable at first glance.
+    /// Selecting a target eases to 2.0x for the focused interaction shot.
     /// Position/pan continues to come from SceneInteractionPolish.
     /// </summary>
     [DefaultExecutionOrder(40000)]
     public sealed class SandPlanetPrototype04SceneDensityOverride : MonoBehaviour
     {
         private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
-        private const float BrowseScale = 2.00f;
-        private const float FocusScale = 2.35f;
+        private const float BrowseScale = 1.50f;
+        private const float FocusScale = 2.00f;
         private const float ScaleSpeed = 9.5f;
 
         private SandPlanetPrototype04Controller controller;
@@ -92,7 +93,7 @@ namespace SandPlanet.Prototype
             bool focused = HasFocusedTarget();
             float desired = focused ? FocusScale : BrowseScale;
 
-            // A location opens directly at the approved dense composition.
+            // A location opens directly at the readable browse scale.
             if (!wasLocationOpen)
             {
                 currentMultiplier = BrowseScale;
