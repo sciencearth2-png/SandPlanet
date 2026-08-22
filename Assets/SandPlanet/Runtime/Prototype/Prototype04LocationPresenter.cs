@@ -13,8 +13,10 @@ namespace SandPlanet.Prototype
     public sealed class Prototype04LocationPresenter : MonoBehaviour
     {
         private const float BrowseScale = 1.5f;
-        private const float FocusScale = 2f;
+        private const float FocusScale = 2.35f;
+        private const float FocusCentering = .85f;
         private const float MotionSpeed = 9.5f;
+        private static readonly Vector2 MaxFocusPan = new Vector2(560f, 420f);
         private static readonly Vector2 LocationMin = new Vector2(.019f, .026f);
         private static readonly Vector2 LocationMax = new Vector2(.728f, .837f);
         private static readonly Vector2[] CharacterSlots =
@@ -158,6 +160,7 @@ namespace SandPlanet.Prototype
                 renderedTargets = signature;
                 RenderTargets(locationId, targets);
             }
+            RefreshTargetInputState();
 
             string type = runtime.SelectedTargetType;
             string id = runtime.SelectedTargetId;
@@ -183,7 +186,7 @@ namespace SandPlanet.Prototype
             {
                 Button button = Instantiate(template, targetRoot);
                 button.gameObject.SetActive(true);
-                button.interactable = true;
+                button.interactable = !runtime.ModalBusy;
                 Prototype04TargetBinding binding = button.gameObject.AddComponent<Prototype04TargetBinding>();
                 binding.TargetType = model.Type;
                 binding.TargetId = model.Id;
@@ -197,12 +200,25 @@ namespace SandPlanet.Prototype
                 string type = model.Type;
                 string id = model.Id;
                 button.onClick.RemoveAllListeners();
-                button.onClick.AddListener(() => runtime.SelectTarget(type, id));
+                button.onClick.AddListener(() =>
+                {
+                    if (!runtime.ModalBusy) runtime.SelectTarget(type, id);
+                });
 
                 if (model.Type == "CHARACTER")
                     StyleCharacter(button, model, CharacterSlotFor(locationId, model.Id, characterIndex++));
                 else
                     StyleObject(button, ObjectSlotFor(locationId, model.Id, objectIndex++));
+            }
+        }
+
+        private void RefreshTargetInputState()
+        {
+            bool interactable = !runtime.ModalBusy;
+            foreach (Prototype04TargetBinding binding in targetRoot.GetComponentsInChildren<Prototype04TargetBinding>(true))
+            {
+                Button button = binding.GetComponent<Button>();
+                if (button != null) button.interactable = interactable;
             }
         }
 
@@ -304,9 +320,9 @@ namespace SandPlanet.Prototype
             }
             Vector3 worldCenter = rect.TransformPoint(rect.rect.center);
             Vector3 localCenter3 = targetRoot.InverseTransformPoint(worldCenter);
-            Vector2 offset = -new Vector2(localCenter3.x, localCenter3.y) * .42f;
-            offset.x = Mathf.Clamp(offset.x, -175f, 175f);
-            offset.y = Mathf.Clamp(offset.y, -105f, 105f);
+            Vector2 offset = -new Vector2(localCenter3.x, localCenter3.y) * FocusScale * FocusCentering;
+            offset.x = Mathf.Clamp(offset.x, -MaxFocusPan.x, MaxFocusPan.x);
+            offset.y = Mathf.Clamp(offset.y, -MaxFocusPan.y, MaxFocusPan.y);
             goalPosition = basePosition + offset;
             goalMultiplier = FocusScale;
         }
@@ -329,7 +345,7 @@ namespace SandPlanet.Prototype
             Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/SandPlanet/Art/Portraits/" + character.Name + ".png");
             if (texture != null)
             {
-                Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 100f);
+                Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(.5f,.5f), 100f);
                 portraitCache[character.Id] = sprite;
                 return sprite;
             }
