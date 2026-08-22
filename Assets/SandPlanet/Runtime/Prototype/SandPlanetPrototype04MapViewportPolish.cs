@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using SandPlanet.Prototype.DataDriven;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,7 +14,7 @@ namespace SandPlanet.Prototype
     ///
     /// Responsibilities:
     /// - Clip the location scene like a real map viewport.
-    /// - Keep the initial 1.5x browse composition safely inside the viewport.
+    /// - Apply the requested redistributed character/object layout from the very first frame.
     /// - Scatter world objects naturally instead of pinning them to the bottom row.
     /// - Give each location a subdued, opaque background tone.
     /// - Move the location title to the upper-left.
@@ -24,8 +25,8 @@ namespace SandPlanet.Prototype
     {
         private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
 
-        // These slots are intentionally inset. SceneDensityOverride displays TargetRoot at 1.5x
-        // while browsing, so the un-focused composition still stays inside the visible viewport.
+        // This is the layout the user approved in the second reference screen.
+        // MapViewportPolish owns this arrangement from the instant the location opens.
         private static readonly Vector2[] CharacterSlots =
         {
             new Vector2(.28f, .70f),
@@ -36,7 +37,7 @@ namespace SandPlanet.Prototype
             new Vector2(.70f, .45f)
         };
 
-        // Objects are now part of the scene composition, not a bottom toolbar.
+        // Objects are part of the scene composition, not a bottom toolbar.
         private static readonly Vector2[] ObjectSlots =
         {
             new Vector2(.30f, .28f),
@@ -48,6 +49,7 @@ namespace SandPlanet.Prototype
         };
 
         private SandPlanetPrototype04Controller controller;
+        private SandPlanetContent04 content;
         private FieldInfo contentField;
         private FieldInfo currentLocationField;
         private FieldInfo locationPanelField;
@@ -109,6 +111,7 @@ namespace SandPlanet.Prototype
 
         private void Start()
         {
+            content = contentField?.GetValue(controller) as SandPlanetContent04;
             locationPanel = locationPanelField?.GetValue(controller) as GameObject;
             locationTitle = locationTitleField?.GetValue(controller) as Text;
             targetRoot = targetRootField?.GetValue(controller) as Transform;
@@ -121,7 +124,7 @@ namespace SandPlanet.Prototype
             modalButtonRoot = modalButtonRootField?.GetValue(controller) as Transform;
             modalButtonTemplate = modalButtonTemplateField?.GetValue(controller) as Button;
 
-            if (locationPanel == null || targetRoot == null || interactionRoot == null || modalPanel == null || modalButtonRoot == null)
+            if (content == null || locationPanel == null || targetRoot == null || interactionRoot == null || modalPanel == null || modalButtonRoot == null)
             {
                 enabled = false;
                 return;
@@ -182,14 +185,14 @@ namespace SandPlanet.Prototype
 
             if (modalTitle != null)
             {
-                modalTitle.fontSize = 25; // +2pt
+                modalTitle.fontSize = 25;
                 modalTitle.lineSpacing = 1.05f;
                 SetRect(modalTitle.rectTransform, new Vector2(.065f, .865f), new Vector2(.935f, .965f));
             }
 
             if (modalBody != null)
             {
-                modalBody.fontSize = 19; // +2pt
+                modalBody.fontSize = 19;
                 modalBody.lineSpacing = 1.13f;
                 modalBody.alignment = TextAnchor.UpperLeft;
                 modalBody.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -241,12 +244,23 @@ namespace SandPlanet.Prototype
                 if (targetTemplate != null && child == targetTemplate.transform) continue;
                 if (!child.gameObject.activeSelf) continue;
 
+                Button button = child.GetComponent<Button>();
+                Text label = child.GetComponentInChildren<Text>(true);
+                if (button == null || label == null) continue;
+
+                // Do not wait for the older layout layer to identify targets. The first visible
+                // location frame must already use the approved redistributed composition.
                 SceneTargetView04 view = child.GetComponent<SceneTargetView04>();
-                if (view == null || string.IsNullOrEmpty(view.TargetId)) continue;
+                if (view == null) view = child.gameObject.AddComponent<SceneTargetView04>();
+                if (string.IsNullOrEmpty(view.TargetId)) IdentifyTarget(label.text, view);
+                if (string.IsNullOrEmpty(view.TargetId)) continue;
+
                 if (string.Equals(view.TargetType, "CHARACTER", StringComparison.Ordinal)) characters.Add(view);
                 else if (string.Equals(view.TargetType, "WORLD_TARGET", StringComparison.Ordinal)) objects.Add(view);
             }
 
+            // TargetID order produces the approved Diya -> Jina -> Sam arrangement in the settlement,
+            // unlike the old display-name sort which produced Diya -> Sam -> Jina.
             characters.Sort((a, b) => string.CompareOrdinal(a.TargetId, b.TargetId));
             objects.Sort((a, b) => string.CompareOrdinal(a.TargetId, b.TargetId));
 
@@ -257,13 +271,35 @@ namespace SandPlanet.Prototype
                 PlaceTarget(objects[i], ObjectSlots[i % ObjectSlots.Length], new Vector2(172f, 50f));
         }
 
+        private void IdentifyTarget(string rawLabel, SceneTargetView04 view)
+        {
+            if (content == null || view == null) return;
+            string raw = rawLabel ?? string.Empty;
+
+            foreach (SandPlanetCharacter04 character in content.Characters.Values)
+            {
+                if (!character.Active || raw.IndexOf(character.Name, StringComparison.Ordinal) < 0) continue;
+                view.TargetType = "CHARACTER";
+                view.TargetId = character.Id;
+                return;
+            }
+
+            foreach (SandPlanetWorldTarget04 target in content.WorldTargets.Values)
+            {
+                if (!target.Active || raw.IndexOf(target.Name, StringComparison.Ordinal) < 0) continue;
+                view.TargetType = "WORLD_TARGET";
+                view.TargetId = target.Id;
+                return;
+            }
+        }
+
         private static void PlaceTarget(SceneTargetView04 view, Vector2 slot, Vector2 size)
         {
             RectTransform rect = view.GetComponent<RectTransform>();
             if (rect == null) return;
 
-            // Extra clamp is deliberate. It protects the initial 1.5x browse state even if a future
-            // slot table is edited too close to the viewport edge. Focus zoom may clip naturally.
+            // Keep the authored slot table within a safe inset. Focus zoom may clip naturally,
+            // but the approved browse composition itself starts from deliberate positions.
             slot.x = Mathf.Clamp(slot.x, .24f, .76f);
             slot.y = Mathf.Clamp(slot.y, .24f, .76f);
             rect.anchorMin = rect.anchorMax = slot;
@@ -332,10 +368,10 @@ namespace SandPlanet.Prototype
             // Muted, low-saturation, fully opaque tones. These are placeholders for future scene art.
             switch (id)
             {
-                case "LOC_01_SETTLEMENT": return new Color(.105f, .079f, .058f, 1f); // warm earth / settlement
-                case "LOC_02_SHIP":       return new Color(.052f, .069f, .079f, 1f); // steel blue / ship exterior
-                case "LOC_03_GRAVEYARD":  return new Color(.061f, .062f, .069f, 1f); // ash slate / graveyard
-                case "LOC_04_OASIS":      return new Color(.049f, .078f, .070f, 1f); // muted teal / oasis
+                case "LOC_01_SETTLEMENT": return new Color(.105f, .079f, .058f, 1f);
+                case "LOC_02_SHIP":       return new Color(.052f, .069f, .079f, 1f);
+                case "LOC_03_GRAVEYARD":  return new Color(.061f, .062f, .069f, 1f);
+                case "LOC_04_OASIS":      return new Color(.049f, .078f, .070f, 1f);
                 case "LOC_05_COMMAND":    return new Color(.046f, .058f, .075f, 1f);
                 case "LOC_06_SUPPLY":     return new Color(.070f, .071f, .053f, 1f);
                 case "LOC_07_TECH":       return new Color(.061f, .054f, .075f, 1f);
