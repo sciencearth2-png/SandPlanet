@@ -1,62 +1,34 @@
 using System;
-using System.Collections.Generic;
 using System.Reflection;
-using SandPlanet.Prototype.DataDriven;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Final visual pass for the Prototype04 location viewport.
-    /// Keeps gameplay/data untouched and only owns presentation values that must win
-    /// after the older SceneDialogueLayout / density layers have refreshed.
+    /// Visual-only polish for the Prototype04 location viewport.
     ///
-    /// Responsibilities:
-    /// - Clip the location scene like a real map viewport.
-    /// - Apply the requested redistributed character/object layout from the very first frame.
-    /// - Scatter world objects naturally instead of pinning them to the bottom row.
-    /// - Give each location a subdued, opaque background tone.
-    /// - Move the location title to the upper-left.
-    /// - Improve interaction/dialogue readability with slightly larger type and controls.
+    /// IMPORTANT:
+    /// This component must never write target positions, sizes, anchors, or scale.
+    /// SandPlanetPrototype04SceneDialogueLayout is the single authority for
+    /// character/world-target layout. Keeping that ownership singular prevents
+    /// render-order overrides and the repeated placement regressions we saw before.
+    ///
+    /// Responsibilities here are limited to:
+    /// - invisible viewport clipping,
+    /// - muted per-location background colors,
+    /// - panel draw order,
+    /// - location/interaction/dialogue typography and button sizing.
     /// </summary>
     [DefaultExecutionOrder(50000)]
     public sealed class SandPlanetPrototype04MapViewportPolish : MonoBehaviour
     {
         private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
 
-        // Fallback slots. The currently authored targets use explicit ID-based slots below so
-        // the browse-scale composition is stable regardless of list/order changes.
-        private static readonly Vector2[] CharacterSlots =
-        {
-            new Vector2(.30f, .69f),
-            new Vector2(.48f, .55f),
-            new Vector2(.65f, .68f),
-            new Vector2(.34f, .45f),
-            new Vector2(.58f, .48f),
-            new Vector2(.43f, .63f)
-        };
-
-        // These are deliberately higher than the previous values. The whole TargetRoot is shown
-        // at 1.5x in browse mode, so low authored Y values visually collapsed back into a bottom row.
-        private static readonly Vector2[] ObjectSlots =
-        {
-            new Vector2(.32f, .42f),
-            new Vector2(.57f, .35f),
-            new Vector2(.63f, .54f),
-            new Vector2(.38f, .58f),
-            new Vector2(.58f, .63f),
-            new Vector2(.46f, .31f)
-        };
-
         private SandPlanetPrototype04Controller controller;
-        private SandPlanetContent04 content;
-        private FieldInfo contentField;
         private FieldInfo currentLocationField;
         private FieldInfo locationPanelField;
         private FieldInfo locationTitleField;
-        private FieldInfo targetRootField;
-        private FieldInfo targetTemplateField;
         private FieldInfo interactionRootField;
         private FieldInfo interactionTemplateField;
         private FieldInfo modalPanelField;
@@ -67,8 +39,6 @@ namespace SandPlanet.Prototype
 
         private GameObject locationPanel;
         private Text locationTitle;
-        private Transform targetRoot;
-        private Button targetTemplate;
         private Transform interactionRoot;
         private Button interactionTemplate;
         private GameObject modalPanel;
@@ -95,12 +65,9 @@ namespace SandPlanet.Prototype
             }
 
             Type t = controller.GetType();
-            contentField = t.GetField("content", PrivateInstance);
             currentLocationField = t.GetField("currentLocationId", PrivateInstance);
             locationPanelField = t.GetField("locationPanel", PrivateInstance);
             locationTitleField = t.GetField("locationTitleText", PrivateInstance);
-            targetRootField = t.GetField("targetRoot", PrivateInstance);
-            targetTemplateField = t.GetField("targetTemplate", PrivateInstance);
             interactionRootField = t.GetField("interactionRoot", PrivateInstance);
             interactionTemplateField = t.GetField("interactionTemplate", PrivateInstance);
             modalPanelField = t.GetField("modalPanel", PrivateInstance);
@@ -112,11 +79,8 @@ namespace SandPlanet.Prototype
 
         private void Start()
         {
-            content = contentField?.GetValue(controller) as SandPlanetContent04;
             locationPanel = locationPanelField?.GetValue(controller) as GameObject;
             locationTitle = locationTitleField?.GetValue(controller) as Text;
-            targetRoot = targetRootField?.GetValue(controller) as Transform;
-            targetTemplate = targetTemplateField?.GetValue(controller) as Button;
             interactionRoot = interactionRootField?.GetValue(controller) as Transform;
             interactionTemplate = interactionTemplateField?.GetValue(controller) as Button;
             modalPanel = modalPanelField?.GetValue(controller) as GameObject;
@@ -125,7 +89,7 @@ namespace SandPlanet.Prototype
             modalButtonRoot = modalButtonRootField?.GetValue(controller) as Transform;
             modalButtonTemplate = modalButtonTemplateField?.GetValue(controller) as Button;
 
-            if (content == null || locationPanel == null || targetRoot == null || interactionRoot == null || modalPanel == null || modalButtonRoot == null)
+            if (locationPanel == null || interactionRoot == null || modalPanel == null || modalButtonRoot == null)
             {
                 enabled = false;
                 return;
@@ -149,8 +113,6 @@ namespace SandPlanet.Prototype
 
         private void EnsureViewportClip()
         {
-            // RectMask2D clips portraits/cards that move outside the location rectangle.
-            // There is intentionally no visible border: the viewport edge itself is the boundary.
             RectMask2D mask = locationPanel.GetComponent<RectMask2D>();
             if (mask == null) mask = locationPanel.AddComponent<RectMask2D>();
             mask.padding = Vector4.zero;
@@ -221,129 +183,16 @@ namespace SandPlanet.Prototype
             if (scene != null)
                 scene.color = LocationBackground(locationId);
 
-            // Scene panel remains above Quest/Log as requested; right interaction/modal panels can still sit above it.
+            // Layering only. Target transforms are intentionally untouched here.
             locationPanel.transform.SetAsLastSibling();
             if (interactionRoot.parent != null && interactionRoot.parent.gameObject.activeInHierarchy)
                 interactionRoot.parent.SetAsLastSibling();
             if (modalPanel.activeInHierarchy)
                 modalPanel.transform.SetAsLastSibling();
 
-            ApplySafeSceneSlots();
             ApplyStaticTypography();
             StyleDynamicInteractionButtons();
             StyleDynamicModalButtons();
-        }
-
-        private void ApplySafeSceneSlots()
-        {
-            List<SceneTargetView04> characters = new List<SceneTargetView04>();
-            List<SceneTargetView04> objects = new List<SceneTargetView04>();
-
-            for (int i = 0; i < targetRoot.childCount; i++)
-            {
-                Transform child = targetRoot.GetChild(i);
-                if (targetTemplate != null && child == targetTemplate.transform) continue;
-                if (!child.gameObject.activeSelf) continue;
-
-                Button button = child.GetComponent<Button>();
-                Text label = child.GetComponentInChildren<Text>(true);
-                if (button == null || label == null) continue;
-
-                // Do not wait for the older layout layer to identify targets. The first visible
-                // location frame must already use the redistributed composition.
-                SceneTargetView04 view = child.GetComponent<SceneTargetView04>();
-                if (view == null) view = child.gameObject.AddComponent<SceneTargetView04>();
-                if (string.IsNullOrEmpty(view.TargetId)) IdentifyTarget(label.text, view);
-                if (string.IsNullOrEmpty(view.TargetId)) continue;
-
-                if (string.Equals(view.TargetType, "CHARACTER", StringComparison.Ordinal)) characters.Add(view);
-                else if (string.Equals(view.TargetType, "WORLD_TARGET", StringComparison.Ordinal)) objects.Add(view);
-            }
-
-            characters.Sort((a, b) => string.CompareOrdinal(a.TargetId, b.TargetId));
-            objects.Sort((a, b) => string.CompareOrdinal(a.TargetId, b.TargetId));
-
-            for (int i = 0; i < characters.Count; i++)
-                PlaceTarget(characters[i], CharacterSlot(characters[i].TargetId, i), new Vector2(120f, 158f));
-
-            for (int i = 0; i < objects.Count; i++)
-                PlaceTarget(objects[i], ObjectSlot(objects[i].TargetId, i), new Vector2(172f, 50f));
-        }
-
-        private static Vector2 CharacterSlot(string targetId, int fallbackIndex)
-        {
-            // Explicit slots make the initial 1.5x browse view safe and deterministic.
-            // In particular, Jina is kept near the center instead of the right clipping edge.
-            switch (targetId)
-            {
-                case "CHA_DIYA":     return new Vector2(.30f, .69f);
-                case "CHA_JINA":     return new Vector2(.48f, .55f);
-                case "CHA_SAM":      return new Vector2(.65f, .68f);
-                case "CHA_BENJAMIN": return new Vector2(.32f, .68f);
-                case "CHA_FAYE":     return new Vector2(.59f, .53f);
-                case "CHA_BORICHI":  return new Vector2(.33f, .68f);
-                default: return CharacterSlots[fallbackIndex % CharacterSlots.Length];
-            }
-        }
-
-        private static Vector2 ObjectSlot(string targetId, int fallbackIndex)
-        {
-            // Objects intentionally occupy different heights so they read as map elements rather
-            // than a toolbar. Positions are authored for the 1.5x browse scale.
-            switch (targetId)
-            {
-                case "OBJ_01_SETTLEMENT_BOARD":   return new Vector2(.32f, .42f);
-                case "OBJ_01_SETTLEMENT_REST":    return new Vector2(.55f, .34f);
-                case "OBJ_01_SETTLEMENT_SHELTER": return new Vector2(.63f, .54f);
-
-                case "OBJ_02_SHIP_OUTER_PANEL": return new Vector2(.36f, .35f);
-                case "OBJ_02_SHIP_CONSOLE":     return new Vector2(.62f, .44f);
-
-                case "OBJ_03_GRAVE_MEMORIAL": return new Vector2(.39f, .49f);
-                case "OBJ_03_GRAVE_BARRIER":  return new Vector2(.62f, .34f);
-
-                case "OBJ_04_OASIS_PUMP":  return new Vector2(.60f, .44f);
-                case "OBJ_04_OASIS_WATER": return new Vector2(.48f, .31f);
-
-                default: return ObjectSlots[fallbackIndex % ObjectSlots.Length];
-            }
-        }
-
-        private void IdentifyTarget(string rawLabel, SceneTargetView04 view)
-        {
-            if (content == null || view == null) return;
-            string raw = rawLabel ?? string.Empty;
-
-            foreach (SandPlanetCharacter04 character in content.Characters.Values)
-            {
-                if (!character.Active || raw.IndexOf(character.Name, StringComparison.Ordinal) < 0) continue;
-                view.TargetType = "CHARACTER";
-                view.TargetId = character.Id;
-                return;
-            }
-
-            foreach (SandPlanetWorldTarget04 target in content.WorldTargets.Values)
-            {
-                if (!target.Active || raw.IndexOf(target.Name, StringComparison.Ordinal) < 0) continue;
-                view.TargetType = "WORLD_TARGET";
-                view.TargetId = target.Id;
-                return;
-            }
-        }
-
-        private static void PlaceTarget(SceneTargetView04 view, Vector2 slot, Vector2 size)
-        {
-            RectTransform rect = view.GetComponent<RectTransform>();
-            if (rect == null) return;
-
-            // These insets are deliberately stricter than before because TargetRoot is already
-            // scaled to 1.5x in browse mode. Focus zoom may clip naturally; browse mode must not.
-            slot.x = Mathf.Clamp(slot.x, .28f, .66f);
-            slot.y = Mathf.Clamp(slot.y, .29f, .72f);
-            rect.anchorMin = rect.anchorMax = slot;
-            rect.pivot = new Vector2(.5f, .5f);
-            rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = size;
         }
 
         private void StyleDynamicInteractionButtons()
@@ -403,7 +252,6 @@ namespace SandPlanet.Prototype
 
         private static Color LocationBackground(string id)
         {
-            // Muted, low-saturation, fully opaque tones. These are placeholders for future scene art.
             switch (id)
             {
                 case "LOC_01_SETTLEMENT": return new Color(.105f, .079f, .058f, 1f);
