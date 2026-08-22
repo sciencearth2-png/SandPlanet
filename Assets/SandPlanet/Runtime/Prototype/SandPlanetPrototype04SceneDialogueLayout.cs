@@ -36,24 +36,29 @@ namespace SandPlanet.Prototype
         // Dark, slightly transparent temporary location backdrop.
         private static readonly Color ScenePanelColor = new Color(.025f, .030f, .035f, .90f);
 
+        // Final browse composition. TargetRoot is scaled to 1.5x elsewhere, so these positions
+        // deliberately stay inside a tighter safe area. ID-order below maps settlement characters
+        // as Diya -> Jina -> Sam, keeping Jina away from the clipping edge.
         private static readonly Vector2[] CharacterSlots =
         {
-            new Vector2(.18f, .70f),
-            new Vector2(.50f, .60f),
-            new Vector2(.82f, .70f),
-            new Vector2(.25f, .37f),
-            new Vector2(.58f, .32f),
-            new Vector2(.84f, .40f)
+            new Vector2(.28f, .69f),
+            new Vector2(.48f, .55f),
+            new Vector2(.64f, .68f),
+            new Vector2(.33f, .43f),
+            new Vector2(.57f, .43f),
+            new Vector2(.45f, .63f)
         };
 
+        // World targets are map elements, not a bottom toolbar. These slots intentionally mix
+        // lower/middle heights while remaining safe under the default 1.5x browse scale.
         private static readonly Vector2[] ObjectSlots =
         {
-            new Vector2(.13f, .10f),
-            new Vector2(.38f, .10f),
-            new Vector2(.63f, .10f),
-            new Vector2(.87f, .10f),
-            new Vector2(.31f, .23f),
-            new Vector2(.70f, .23f)
+            new Vector2(.31f, .40f),
+            new Vector2(.58f, .31f),
+            new Vector2(.53f, .52f),
+            new Vector2(.38f, .58f),
+            new Vector2(.63f, .44f),
+            new Vector2(.43f, .29f)
         };
 
         private SandPlanetPrototype04Controller controller;
@@ -437,8 +442,10 @@ namespace SandPlanet.Prototype
                 else if (view.TargetType == "WORLD_TARGET") objects.Add(view);
             }
 
-            characters = characters.OrderBy(TargetName).ToList();
-            objects = objects.OrderBy(TargetName).ToList();
+            // Use stable IDs rather than display-name ordering. For the settlement this gives
+            // Diya -> Jina -> Sam, which is the approved redistributed composition.
+            characters = characters.OrderBy(v => v.TargetId, StringComparer.Ordinal).ToList();
+            objects = objects.OrderBy(v => v.TargetId, StringComparer.Ordinal).ToList();
 
             for (int i = 0; i < characters.Count; i++)
                 StyleCharacterTarget(characters[i], CharacterSlots[i % CharacterSlots.Length]);
