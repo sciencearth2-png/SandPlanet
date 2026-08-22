@@ -4,54 +4,86 @@
 - 현재 유일한 개발 대상은 **Prototype 0.4**다.
 - Unity **6000.4.1f1 / URP**.
 - Scene: `Assets/Scenes/SandPlanet_Prototype_04.unity`.
-- 과거 프로토타입 버전의 코드/씬/Generated 자산은 의도적으로 제거되었다. 복구하거나 다시 참조하지 않는다.
+- 과거 Prototype 0.1~0.3 코드/씬/Generated 자산은 의도적으로 제거되었다. 복구하거나 다시 참조하지 않는다.
 
 ## Read first
 작업 전 아래 순서로 읽는다.
-1. `docs/REFACTOR_HANDOFF_v1.md`
-2. `docs/W1_NARRATIVE_SYSTEM_v1_7.md`
-3. `docs/PROTOTYPE_0_4_RUN.md`
-4. `docs/DESIGN_STATE.md`
-5. `docs/PROTOTYPE_SCOPE.md`
-6. `docs/UNITY_ARCHITECTURE.md`
-
-## Refactor audit rule
-사용자가 실제 리팩터링 구현을 승인하기 전에는 **AUDIT ONLY**다.
-- Runtime/Editor/gameplay 코드 수정 금지
-- scene/prefab/meta 수정 금지
-- workbook/CSV 수정 금지
-- bug 즉석 수정 금지
-- `Tools > SandPlanet > Generate Prototype 0.4` 실행 금지
-- 첫 audit의 허용 결과물은 `docs/REFACTOR_AUDIT_REPORT_v1.md`뿐이다.
+1. `docs/W1_NARRATIVE_SYSTEM_v1_7.md`
+2. `docs/PROTOTYPE_0_4_RUN.md`
+3. `docs/DESIGN_STATE.md`
+4. `docs/PROTOTYPE_SCOPE.md`
+5. `docs/UNITY_ARCHITECTURE.md`
 
 ## Source of truth
-- 최신 리팩터링/UX 계약: `docs/REFACTOR_HANDOFF_v1.md`
-- Week 1 합의: `docs/W1_NARRATIVE_SYSTEM_v1_7.md`
+- Week 1 서사/시스템 합의: `docs/W1_NARRATIVE_SYSTEM_v1_7.md`
 - 현재 런타임/데이터 계약: `docs/PROTOTYPE_0_4_RUN.md`
+- 현재 기획 상태: `docs/DESIGN_STATE.md`
+- 현재 Prototype 범위: `docs/PROTOTYPE_SCOPE.md`
+- 현재 코드 책임 경계: `docs/UNITY_ARCHITECTURE.md`
 - Authoring source: `Assets/SandPlanet/Data/Authoring/SandPlanet_Master.xlsx`
 - Generated CSV: `Assets/SandPlanet/Data/Generated/CSV/`
-- 문서와 실제 코드가 충돌하면 임의로 하나를 선택하지 말고 audit report에 기록한다.
+
+문서와 실제 코드가 충돌하면 임의로 새 패치 코드를 추가하지 말고 먼저 충돌 지점을 설명한다.
+
+## Work classification before implementation
+모든 요청은 구현 전에 아래 중 하나로 분류한다.
+- **DATA/CONTENT**: 대사, 수치, 조건, Quest/Event/Interaction/State/Schedule 등 authoring 데이터로 해결 가능.
+- **PRESENTATION**: 기존 UI/표현 authority 내부 변경.
+- **GAMEPLAY RULE**: 기존 gameplay service의 규칙 변경.
+- **NEW SYSTEM**: 기존 authority로 표현할 수 없는 신규 상태/규칙/흐름.
+
+가능하면 가장 작은 기존 authority만 수정한다. DATA로 가능한 요청 때문에 새 MonoBehaviour나 하드코딩 분기를 만들지 않는다.
+
+## Architecture ownership guardrails
+### Gameplay/runtime
+- `Prototype04GameState`: mutable runtime state의 유일한 저장소.
+- `Prototype04ConditionEvaluator`: 조건 판정의 유일한 구현.
+- `Prototype04QuestService`: Quest 상태/Step mutation 및 event progression authority.
+- `Prototype04ScheduleService`: NPC 위치/schedule 판정 authority.
+- `Prototype04InteractionService`: Interaction availability authority.
+- `Prototype04EventService`: Event/Trigger/queue/STATE_CHANGE authority.
+- `Prototype04FlowRuntime`: Interaction/Event flow, staged effects, commit authority.
+- `SandPlanetPrototype04Controller`: 위 서비스를 Unity scene/presentation에 연결하는 coordinator. 새로운 gameplay 규칙의 만능 저장소로 사용하지 않는다.
+
+### Presentation/navigation
+- `Prototype04CompositionRoot`: runtime presentation dependency 조립.
+- `Prototype04NavigationController`: UI mode와 Back/ESC의 유일한 authority.
+- `Prototype04LocationPresenter`: Location viewport, target placement, clipping, pan/zoom의 유일한 authority.
+- `Prototype04NarrativePresenter`: Interaction/Narrative panel, portrait, choice presentation authority.
+- `Prototype04HudPresenter`: HUD/context/progress presentation authority.
+- Quest tracker와 People panel은 gameplay state를 읽어 표현만 하며 상태 mutation을 소유하지 않는다.
+
+### One-owner rule
+- 같은 RectTransform, visibility, selected target, UI mode, flow state, Quest state에 복수 final writer를 두지 않는다.
+- 기존 authority가 있으면 그 클래스/API를 확장한다. 새 `Polish`, `Finalizer`, `Override`, `Guard`, execution-order patch를 추가하지 않는다.
+- Reflection으로 다른 component private state를 읽거나 UI text를 파싱해 identity/state를 역추론하지 않는다.
+- `Update/LateUpdate/Canvas.willRenderCanvases/DefaultExecutionOrder` 경쟁으로 최종 상태를 결정하지 않는다.
+
+## New-system rule
+신규 시스템이 정말 필요하면 구현 전에 최소한 다음을 명시한다.
+1. 소유 state가 무엇인지
+2. 그 state의 단일 owner가 누구인지
+3. 입력과 출력/event가 무엇인지
+4. 기존 service/presenter 중 어디와 연결되는지
+5. workbook/CSV 계약 변경 여부
+6. 회귀 테스트 항목
+
+이 항목이 정의되지 않은 상태에서 새로운 manager/helper/patch component를 추가하지 않는다.
 
 ## Scope control
 - 요청받지 않은 시스템/NPC/퀘스트/UI를 추가하지 않는다.
 - 확정과 TEMP/TBD를 구분한다.
 - 구현 때문에 기획을 바꿔야 하면 먼저 영향과 선택지를 제시한다.
-- 현재 구조의 핵심 개념은 `Interaction / Event / Quest / QuestStep / State`다.
+- 특정 캐릭터/Quest 전용 로직을 core manager/service에 하드코딩하지 않는다. 가능한 경우 authoring data로 표현한다.
 
-## Narrative rules
+## Narrative/data rules
 - 동기 / 공포 / 정체성은 캐릭터 행동의 직접 원리다.
 - Big5는 표현 참고값이며 기계적 결정식이 아니다.
 - 플레이어가 직접 선택하는 행동은 Interaction Flow가 담당한다.
 - 자동/강제 스토리는 Event Flow가 담당한다.
-- Quest는 Main / Character / Side 진행 추적과 UI 역할을 하며 `QuestRole`과 `QuestAction`으로 Interaction/Event에 연결된다.
-- Quest 상태는 Day/State 조건만으로 자동 변경하지 않는다.
-
-## Unity principles
-- 최종 표현은 **3D 디오라마형 허브 + 2D 장소/내러티브 UI**다.
-- 3D 허브 오브젝트는 Location ID만 알고 게임 규칙을 소유하지 않는다.
-- 정적 콘텐츠 정의와 런타임 상태를 분리한다.
-- 특정 캐릭터/퀘스트 전용 분기를 핵심 매니저에 쌓지 않는다. 승인된 특수 UI는 별도 컴포넌트로 둔다.
-- 같은 RectTransform/visibility/input state에 여러 최종 writer를 두지 않는 것을 리팩터링 목표로 한다.
+- Quest는 Main / Character / Side 진행 추적과 UI 역할을 한다.
+- 현재 runtime은 explicit `QuestAction`과 기존 `ProgressEventID/OnProgressEvent`를 모두 지원한다. 둘 중 하나를 제거/통합하려면 authoring migration을 별도 승인받는다.
+- Quest 상태를 임의의 Day/State 하드코딩으로 직접 변경하지 않는다.
 
 ## Current core rules
 - 21일 / 3주.
@@ -82,7 +114,12 @@
 2. `Validate Generated CSV`
 3. 기존 Prototype04 scene에서 테스트
 
-`Generate Prototype 0.4`는 scene 구조 자체를 재생성해야 할 때만 사용한다.
+`Tools > SandPlanet > Generate Prototype 0.4`는 scene 구조 자체를 재생성해야 할 때만 사용한다. 일반 기획/데이터/UI 수정에서는 실행하지 않는다.
 
 ## Completion
-작업 완료 시 변경 시스템, 테스트 방법, 남은 TEMP, 로컬 Unity 검증 필요 여부를 요약한다.
+작업 완료 시 다음을 짧게 보고한다.
+- 변경한 데이터/authority
+- 새 owner 또는 새 state를 만들었는지 여부
+- 테스트 방법
+- 남은 TEMP/TBD
+- 로컬 Unity 검증 필요 여부
