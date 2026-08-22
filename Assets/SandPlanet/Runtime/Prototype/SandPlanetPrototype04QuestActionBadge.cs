@@ -9,17 +9,19 @@ using UnityEngine.UI;
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Adds player-facing Quest update chips to narrative choice buttons.
-    /// The chip is derived from v1.6 QuestAction metadata, so writers do not need
-    /// a separate UI column in Excel. Quest type is communicated by color; the
-    /// player-facing label uses the actual quest title.
+    /// Shows QuestAction information on narrative choice buttons without covering
+    /// the actual player choice. Quest-linked buttons become a real two-tier layout:
+    /// a small quest strip on top and the original choice text below.
     /// </summary>
+    [DefaultExecutionOrder(15000)]
     public sealed class SandPlanetPrototype04QuestActionBadge : MonoBehaviour
     {
         private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
         private const string MainColor = "#F0A24A";
         private const string CharacterColor = "#69C77C";
         private const string SideColor = "#F1D784";
+        private const float NormalHeight = 58f;
+        private const float QuestHeight = 88f;
 
         private SandPlanetPrototype04Controller controller;
         private SandPlanetContent04 content;
@@ -58,15 +60,8 @@ namespace SandPlanet.Prototype
             getQuestStepMethod = type.GetMethod("GetQuestStep", PrivateInstance);
         }
 
-        private void OnEnable()
-        {
-            Canvas.willRenderCanvases += Refresh;
-        }
-
-        private void OnDisable()
-        {
-            Canvas.willRenderCanvases -= Refresh;
-        }
+        private void OnEnable() => Canvas.willRenderCanvases += Refresh;
+        private void OnDisable() => Canvas.willRenderCanvases -= Refresh;
 
         private void Refresh()
         {
@@ -94,8 +89,8 @@ namespace SandPlanet.Prototype
                 Transform child = root.GetChild(i);
                 if (!child.gameObject.activeSelf) continue;
                 Button button = child.GetComponent<Button>();
-                Text text = child.GetComponentInChildren<Text>(true);
-                if (button == null || text == null || text.text == "취소") continue;
+                Text main = FindMainLabel(button);
+                if (button == null || main == null || string.Equals(main.text, "취소", StringComparison.Ordinal)) continue;
                 buttons.Add(button);
             }
 
@@ -104,27 +99,35 @@ namespace SandPlanet.Prototype
             {
                 Button button = buttons[i];
                 QuestActionBadgeBinding binding = button.GetComponent<QuestActionBadgeBinding>();
-                if (binding == null)
-                    binding = button.gameObject.AddComponent<QuestActionBadgeBinding>();
-
-                BadgeInfo badge = BuildBadge(rows[i], interactionFlow != null);
-                ApplyChip(button, binding, badge);
+                if (binding == null) binding = button.gameObject.AddComponent<QuestActionBadgeBinding>();
+                ApplyChip(button, binding, BuildBadge(rows[i], interactionFlow != null));
             }
         }
 
         private void ApplyChip(Button button, QuestActionBadgeBinding binding, BadgeInfo badge)
         {
+            EnsureBinding(button, binding);
             if (!badge.Visible)
             {
                 if (binding.ChipRoot != null) binding.ChipRoot.SetActive(false);
+                ApplyHeight(button, NormalHeight);
+                LayoutMainLabel(binding.MainText, false);
                 return;
             }
 
             EnsureChip(button, binding);
+            ApplyHeight(button, QuestHeight);
+            LayoutMainLabel(binding.MainText, true);
             binding.ChipRoot.SetActive(true);
             binding.ChipText.text = badge.Label;
             binding.ChipText.color = badge.Color;
-            binding.ChipImage.color = new Color(badge.Color.r, badge.Color.g, badge.Color.b, 0.20f);
+            binding.ChipImage.color = new Color(badge.Color.r, badge.Color.g, badge.Color.b, .27f);
+            binding.ChipRoot.transform.SetAsLastSibling();
+        }
+
+        private static void EnsureBinding(Button button, QuestActionBadgeBinding binding)
+        {
+            if (binding.MainText == null) binding.MainText = FindMainLabel(button);
         }
 
         private static void EnsureChip(Button button, QuestActionBadgeBinding binding)
@@ -132,23 +135,16 @@ namespace SandPlanet.Prototype
             if (binding.ChipRoot != null && binding.ChipText != null && binding.ChipImage != null) return;
 
             Transform existing = button.transform.Find("QuestActionChip");
-            GameObject chip;
-            if (existing != null)
-            {
-                chip = existing.gameObject;
-            }
-            else
-            {
-                chip = new GameObject("QuestActionChip", typeof(RectTransform), typeof(Image));
-                chip.transform.SetParent(button.transform, false);
-            }
+            GameObject chip = existing != null
+                ? existing.gameObject
+                : new GameObject("QuestActionChip", typeof(RectTransform), typeof(Image));
+            if (existing == null) chip.transform.SetParent(button.transform, false);
 
             RectTransform rect = chip.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(1f, 0.5f);
-            rect.anchorMax = new Vector2(1f, 0.5f);
-            rect.pivot = new Vector2(1f, 0.5f);
-            rect.anchoredPosition = new Vector2(-12f, 0f);
-            rect.sizeDelta = new Vector2(280f, 34f);
+            rect.anchorMin = new Vector2(.025f, .66f);
+            rect.anchorMax = new Vector2(.975f, .96f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
 
             Image image = chip.GetComponent<Image>();
             image.raycastTarget = false;
@@ -166,39 +162,72 @@ namespace SandPlanet.Prototype
                 label = labelGo.GetComponent<Text>();
             }
 
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            label.fontSize = 14;
+            label.font = binding.MainText != null && binding.MainText.font != null
+                ? binding.MainText.font
+                : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.fontSize = 13;
             label.fontStyle = FontStyle.Bold;
             label.alignment = TextAnchor.MiddleCenter;
             label.raycastTarget = false;
             label.supportRichText = true;
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
+            RectTransform lr = label.rectTransform;
+            lr.anchorMin = Vector2.zero;
+            lr.anchorMax = Vector2.one;
+            lr.offsetMin = new Vector2(8f, 1f);
+            lr.offsetMax = new Vector2(-8f, -1f);
 
-            RectTransform labelRect = label.rectTransform;
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = new Vector2(8f, 2f);
-            labelRect.offsetMax = new Vector2(-8f, -2f);
-
-            chip.transform.SetAsLastSibling();
             binding.ChipRoot = chip;
             binding.ChipImage = image;
             binding.ChipText = label;
         }
 
+        private static void LayoutMainLabel(Text text, bool questLinked)
+        {
+            if (text == null) return;
+            RectTransform r = text.rectTransform;
+            r.anchorMin = questLinked ? new Vector2(.035f, .05f) : new Vector2(.035f, .08f);
+            r.anchorMax = questLinked ? new Vector2(.965f, .62f) : new Vector2(.965f, .92f);
+            r.offsetMin = Vector2.zero;
+            r.offsetMax = Vector2.zero;
+            text.fontSize = 15;
+            text.fontStyle = FontStyle.Normal;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
+        }
+
+        private static void ApplyHeight(Button button, float height)
+        {
+            LayoutElement le = button.GetComponent<LayoutElement>();
+            if (le == null) le = button.gameObject.AddComponent<LayoutElement>();
+            le.minHeight = height;
+            le.preferredHeight = height;
+        }
+
+        private static Text FindMainLabel(Button button)
+        {
+            if (button == null) return null;
+            Text[] labels = button.GetComponentsInChildren<Text>(true);
+            foreach (Text label in labels)
+            {
+                if (label == null) continue;
+                if (label.transform.IsChildOf(button.transform.Find("QuestActionChip"))) continue;
+                return label;
+            }
+            return null;
+        }
+
         private BadgeInfo BuildBadge(SandPlanetFlowNode04 node, bool interaction)
         {
             SandPlanetQuestActionMeta04 meta = null;
-            if (interaction)
-                content.InteractionNodeMeta.TryGetValue(node, out meta);
-            else
-                content.EventNodeMeta.TryGetValue(node, out meta);
+            if (interaction) content.InteractionNodeMeta.TryGetValue(node, out meta);
+            else content.EventNodeMeta.TryGetValue(node, out meta);
 
-            if (meta == null || string.IsNullOrEmpty(meta.QuestAction) || string.IsNullOrEmpty(meta.QuestId))
-                return BadgeInfo.Hidden;
-            if (!content.Quests.TryGetValue(meta.QuestId, out SandPlanetQuest04 quest))
-                return BadgeInfo.Hidden;
-            if (!WillQuestActionApply(meta))
-                return BadgeInfo.Hidden;
+            if (meta == null || string.IsNullOrEmpty(meta.QuestAction) || string.IsNullOrEmpty(meta.QuestId)) return BadgeInfo.Hidden;
+            if (!content.Quests.TryGetValue(meta.QuestId, out SandPlanetQuest04 quest)) return BadgeInfo.Hidden;
+            if (!WillQuestActionApply(meta)) return BadgeInfo.Hidden;
 
             string action;
             switch (meta.QuestAction.ToUpperInvariant())
@@ -210,7 +239,7 @@ namespace SandPlanet.Prototype
                 default: return BadgeInfo.Hidden;
             }
 
-            return new BadgeInfo(true, "[" + quest.Title + "] " + action, QuestColor(quest.Type));
+            return new BadgeInfo(true, quest.Title + "  ·  " + action, QuestColor(quest.Type));
         }
 
         private bool WillQuestActionApply(SandPlanetQuestActionMeta04 meta)
@@ -218,17 +247,14 @@ namespace SandPlanet.Prototype
             string status = InvokeString(getQuestStatusMethod, meta.QuestId, "LOCKED");
             switch ((meta.QuestAction ?? string.Empty).ToUpperInvariant())
             {
-                case "ACTIVATE_QUEST":
-                    return status == "LOCKED";
+                case "ACTIVATE_QUEST": return status == "LOCKED";
                 case "SET_QUEST_STEP":
                     if (status != "ACTIVE") return false;
                     string currentStep = InvokeString(getQuestStepMethod, meta.QuestId, string.Empty);
                     return !string.IsNullOrEmpty(meta.QuestStepId) && currentStep != meta.QuestStepId;
                 case "COMPLETE_QUEST":
-                case "FAIL_QUEST":
-                    return status == "ACTIVE";
-                default:
-                    return false;
+                case "FAIL_QUEST": return status == "ACTIVE";
+                default: return false;
             }
         }
 
@@ -255,7 +281,6 @@ namespace SandPlanet.Prototype
             public readonly bool Visible;
             public readonly string Label;
             public readonly Color Color;
-
             public BadgeInfo(bool visible, string label, Color color)
             {
                 Visible = visible;
@@ -270,5 +295,6 @@ namespace SandPlanet.Prototype
         public GameObject ChipRoot;
         public Image ChipImage;
         public Text ChipText;
+        public Text MainText;
     }
 }
