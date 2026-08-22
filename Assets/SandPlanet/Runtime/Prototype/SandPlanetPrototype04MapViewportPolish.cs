@@ -25,27 +25,28 @@ namespace SandPlanet.Prototype
     {
         private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
 
-        // This is the layout the user approved in the second reference screen.
-        // MapViewportPolish owns this arrangement from the instant the location opens.
+        // Fallback slots. The currently authored targets use explicit ID-based slots below so
+        // the browse-scale composition is stable regardless of list/order changes.
         private static readonly Vector2[] CharacterSlots =
         {
-            new Vector2(.28f, .70f),
-            new Vector2(.50f, .59f),
-            new Vector2(.72f, .69f),
-            new Vector2(.32f, .42f),
-            new Vector2(.55f, .37f),
-            new Vector2(.70f, .45f)
+            new Vector2(.30f, .69f),
+            new Vector2(.48f, .55f),
+            new Vector2(.65f, .68f),
+            new Vector2(.34f, .45f),
+            new Vector2(.58f, .48f),
+            new Vector2(.43f, .63f)
         };
 
-        // Objects are part of the scene composition, not a bottom toolbar.
+        // These are deliberately higher than the previous values. The whole TargetRoot is shown
+        // at 1.5x in browse mode, so low authored Y values visually collapsed back into a bottom row.
         private static readonly Vector2[] ObjectSlots =
         {
-            new Vector2(.30f, .28f),
-            new Vector2(.58f, .27f),
-            new Vector2(.71f, .51f),
-            new Vector2(.39f, .55f),
-            new Vector2(.63f, .66f),
-            new Vector2(.28f, .62f)
+            new Vector2(.32f, .42f),
+            new Vector2(.57f, .35f),
+            new Vector2(.63f, .54f),
+            new Vector2(.38f, .58f),
+            new Vector2(.58f, .63f),
+            new Vector2(.46f, .31f)
         };
 
         private SandPlanetPrototype04Controller controller;
@@ -249,7 +250,7 @@ namespace SandPlanet.Prototype
                 if (button == null || label == null) continue;
 
                 // Do not wait for the older layout layer to identify targets. The first visible
-                // location frame must already use the approved redistributed composition.
+                // location frame must already use the redistributed composition.
                 SceneTargetView04 view = child.GetComponent<SceneTargetView04>();
                 if (view == null) view = child.gameObject.AddComponent<SceneTargetView04>();
                 if (string.IsNullOrEmpty(view.TargetId)) IdentifyTarget(label.text, view);
@@ -259,16 +260,53 @@ namespace SandPlanet.Prototype
                 else if (string.Equals(view.TargetType, "WORLD_TARGET", StringComparison.Ordinal)) objects.Add(view);
             }
 
-            // TargetID order produces the approved Diya -> Jina -> Sam arrangement in the settlement,
-            // unlike the old display-name sort which produced Diya -> Sam -> Jina.
             characters.Sort((a, b) => string.CompareOrdinal(a.TargetId, b.TargetId));
             objects.Sort((a, b) => string.CompareOrdinal(a.TargetId, b.TargetId));
 
             for (int i = 0; i < characters.Count; i++)
-                PlaceTarget(characters[i], CharacterSlots[i % CharacterSlots.Length], new Vector2(120f, 158f));
+                PlaceTarget(characters[i], CharacterSlot(characters[i].TargetId, i), new Vector2(120f, 158f));
 
             for (int i = 0; i < objects.Count; i++)
-                PlaceTarget(objects[i], ObjectSlots[i % ObjectSlots.Length], new Vector2(172f, 50f));
+                PlaceTarget(objects[i], ObjectSlot(objects[i].TargetId, i), new Vector2(172f, 50f));
+        }
+
+        private static Vector2 CharacterSlot(string targetId, int fallbackIndex)
+        {
+            // Explicit slots make the initial 1.5x browse view safe and deterministic.
+            // In particular, Jina is kept near the center instead of the right clipping edge.
+            switch (targetId)
+            {
+                case "CHA_DIYA":     return new Vector2(.30f, .69f);
+                case "CHA_JINA":     return new Vector2(.48f, .55f);
+                case "CHA_SAM":      return new Vector2(.65f, .68f);
+                case "CHA_BENJAMIN": return new Vector2(.32f, .68f);
+                case "CHA_FAYE":     return new Vector2(.59f, .53f);
+                case "CHA_BORICHI":  return new Vector2(.33f, .68f);
+                default: return CharacterSlots[fallbackIndex % CharacterSlots.Length];
+            }
+        }
+
+        private static Vector2 ObjectSlot(string targetId, int fallbackIndex)
+        {
+            // Objects intentionally occupy different heights so they read as map elements rather
+            // than a toolbar. Positions are authored for the 1.5x browse scale.
+            switch (targetId)
+            {
+                case "OBJ_01_SETTLEMENT_BOARD":   return new Vector2(.32f, .42f);
+                case "OBJ_01_SETTLEMENT_REST":    return new Vector2(.55f, .34f);
+                case "OBJ_01_SETTLEMENT_SHELTER": return new Vector2(.63f, .54f);
+
+                case "OBJ_02_SHIP_OUTER_PANEL": return new Vector2(.36f, .35f);
+                case "OBJ_02_SHIP_CONSOLE":     return new Vector2(.62f, .44f);
+
+                case "OBJ_03_GRAVE_MEMORIAL": return new Vector2(.39f, .49f);
+                case "OBJ_03_GRAVE_BARRIER":  return new Vector2(.62f, .34f);
+
+                case "OBJ_04_OASIS_PUMP":  return new Vector2(.60f, .44f);
+                case "OBJ_04_OASIS_WATER": return new Vector2(.48f, .31f);
+
+                default: return ObjectSlots[fallbackIndex % ObjectSlots.Length];
+            }
         }
 
         private void IdentifyTarget(string rawLabel, SceneTargetView04 view)
@@ -298,10 +336,10 @@ namespace SandPlanet.Prototype
             RectTransform rect = view.GetComponent<RectTransform>();
             if (rect == null) return;
 
-            // Keep the authored slot table within a safe inset. Focus zoom may clip naturally,
-            // but the approved browse composition itself starts from deliberate positions.
-            slot.x = Mathf.Clamp(slot.x, .24f, .76f);
-            slot.y = Mathf.Clamp(slot.y, .24f, .76f);
+            // These insets are deliberately stricter than before because TargetRoot is already
+            // scaled to 1.5x in browse mode. Focus zoom may clip naturally; browse mode must not.
+            slot.x = Mathf.Clamp(slot.x, .28f, .66f);
+            slot.y = Mathf.Clamp(slot.y, .29f, .72f);
             rect.anchorMin = rect.anchorMax = slot;
             rect.pivot = new Vector2(.5f, .5f);
             rect.anchoredPosition = Vector2.zero;
