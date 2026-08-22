@@ -132,9 +132,7 @@ namespace SandPlanet.Prototype
 
         public static string NormalizeQuestRole(SandPlanetInteraction04 interaction)
         {
-            if (interaction == null) return "NONE";
-            if (!string.IsNullOrEmpty(interaction.QuestRole)) return interaction.QuestRole.ToUpperInvariant();
-            return string.IsNullOrEmpty(interaction.QuestId) ? "NONE" : "PROGRESS";
+            return Prototype04InteractionService.NormalizeQuestRole(interaction);
         }
     }
 }
