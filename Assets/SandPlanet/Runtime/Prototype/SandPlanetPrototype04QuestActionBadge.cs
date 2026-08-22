@@ -11,7 +11,8 @@ namespace SandPlanet.Prototype
     /// <summary>
     /// Adds player-facing Quest update chips to narrative choice buttons.
     /// The chip is derived from v1.6 QuestAction metadata, so writers do not need
-    /// a separate UI column in Excel.
+    /// a separate UI column in Excel. Quest type is communicated by color; the
+    /// player-facing label uses the actual quest title.
     /// </summary>
     public sealed class SandPlanetPrototype04QuestActionBadge : MonoBehaviour
     {
@@ -147,7 +148,7 @@ namespace SandPlanet.Prototype
             rect.anchorMax = new Vector2(1f, 0.5f);
             rect.pivot = new Vector2(1f, 0.5f);
             rect.anchoredPosition = new Vector2(-12f, 0f);
-            rect.sizeDelta = new Vector2(220f, 34f);
+            rect.sizeDelta = new Vector2(280f, 34f);
 
             Image image = chip.GetComponent<Image>();
             image.raycastTarget = false;
@@ -202,15 +203,14 @@ namespace SandPlanet.Prototype
             string action;
             switch (meta.QuestAction.ToUpperInvariant())
             {
-                case "ACTIVATE_QUEST": action = "퀘스트 수락"; break;
-                case "SET_QUEST_STEP": action = "퀘스트 진행"; break;
-                case "COMPLETE_QUEST": action = "퀘스트 완료"; break;
-                case "FAIL_QUEST": action = "퀘스트 실패"; break;
+                case "ACTIVATE_QUEST": action = "수락"; break;
+                case "SET_QUEST_STEP": action = "진행"; break;
+                case "COMPLETE_QUEST": action = "완료"; break;
+                case "FAIL_QUEST": action = "실패"; break;
                 default: return BadgeInfo.Hidden;
             }
 
-            string type = quest.Type == "CHARACTER" ? "CHAR" : quest.Type == "SIDE" ? "SIDE" : "MAIN";
-            return new BadgeInfo(true, type + "  " + action, QuestColor(quest.Type));
+            return new BadgeInfo(true, "[" + quest.Title + "] " + action, QuestColor(quest.Type));
         }
 
         private bool WillQuestActionApply(SandPlanetQuestActionMeta04 meta)
