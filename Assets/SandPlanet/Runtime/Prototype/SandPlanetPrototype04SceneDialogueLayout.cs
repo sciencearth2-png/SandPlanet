@@ -13,17 +13,29 @@ using UnityEditor;
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Stable scene/dialogue presentation for Prototype 0.4.
-    /// The location view is a temporary opaque scene placeholder (orange) until
-    /// final location art exists. Targets are placed on that scene. Interaction
-    /// choices and both Interaction/Event dialogue share the fixed right column.
+    /// Final presentation authority for the Prototype 0.4 location/dialogue layout.
+    /// Existing quest/interaction/event rules are unchanged.
+    ///
+    /// Important: an older UX layer still writes legacy LocationPanel anchors during Start.
+    /// This component therefore owns the final panel geometry and reasserts it before render,
+    /// so execution-order differences cannot move the location scene back to the right side.
     /// </summary>
-    [DefaultExecutionOrder(14000)]
+    [DefaultExecutionOrder(20000)]
     public sealed class SandPlanetPrototype04SceneDialogueLayout : MonoBehaviour
     {
         private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
 
-        private static readonly Color ScenePlaceholderColor = new Color(.94f, .43f, .15f, 1f);
+        // Measured from the user's reference screenshot:
+        // x 26..1011 on 1391px => 1.9%..72.7%
+        // y 126..754 on 775px  => bottom 2.6%..top 83.7%
+        private static readonly Vector2 LocationMin = new Vector2(.019f, .026f);
+        private static readonly Vector2 LocationMax = new Vector2(.728f, .837f);
+        private static readonly Vector2 RightPanelMin = new Vector2(.739f, .018f);
+        private static readonly Vector2 RightPanelMax = new Vector2(.995f, .837f);
+
+        // Dark, slightly transparent temporary location backdrop.
+        private static readonly Color ScenePanelColor = new Color(.025f, .030f, .035f, .90f);
+
         private static readonly Vector2[] CharacterSlots =
         {
             new Vector2(.18f, .70f),
@@ -33,6 +45,7 @@ namespace SandPlanet.Prototype
             new Vector2(.58f, .32f),
             new Vector2(.84f, .40f)
         };
+
         private static readonly Vector2[] ObjectSlots =
         {
             new Vector2(.13f, .10f),
@@ -164,16 +177,16 @@ namespace SandPlanet.Prototype
         private void ApplyLocationLayout()
         {
             RectTransform rect = locationPanel.GetComponent<RectTransform>();
-            SetRect(rect, new Vector2(.035f, .035f), new Vector2(.73f, .835f));
+            SetRect(rect, LocationMin, LocationMax);
 
             Image bg = locationPanel.GetComponent<Image>();
             if (bg != null)
             {
-                bg.color = ScenePlaceholderColor;
+                bg.color = ScenePanelColor;
                 bg.raycastTarget = true;
             }
 
-            // Keep Quest and Log panels readable above the temporary scene box.
+            // Scene is behind the existing Quest / Log overlays, matching the reference composition.
             locationPanel.transform.SetSiblingIndex(Mathf.Min(1, locationPanel.transform.parent.childCount - 1));
 
             if (locationTitle != null)
@@ -186,8 +199,7 @@ namespace SandPlanet.Prototype
                 SetRect(locationTitle.rectTransform, new Vector2(.28f, .43f), new Vector2(.72f, .57f));
             }
 
-            // The controller still writes selection text here; we keep it hidden and use
-            // that text only to name the right-side interaction panel.
+            // The controller still updates this text; it is used to derive the right-panel header.
             if (locationHint != null)
             {
                 locationHint.enabled = false;
@@ -200,6 +212,7 @@ namespace SandPlanet.Prototype
                 RectTransform targetRect = targetPanel as RectTransform;
                 if (targetRect != null)
                     SetRect(targetRect, new Vector2(.22f, .12f), new Vector2(.975f, .91f));
+
                 Image targetBg = targetPanel.GetComponent<Image>();
                 if (targetBg != null)
                 {
@@ -221,7 +234,7 @@ namespace SandPlanet.Prototype
             interactionPanel = panel.gameObject;
             panel.SetParent(canvas.transform, false);
             RectTransform panelRect = panel as RectTransform;
-            if (panelRect != null) SetRect(panelRect, new Vector2(.74f, .035f), new Vector2(.985f, .835f));
+            if (panelRect != null) SetRect(panelRect, RightPanelMin, RightPanelMax);
 
             Image image = interactionPanel.GetComponent<Image>();
             if (image != null)
@@ -233,8 +246,10 @@ namespace SandPlanet.Prototype
             Font font = locationTitle != null && locationTitle.font != null
                 ? locationTitle.font
                 : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
             Transform existing = panel.Find("UX18_InteractionHeader");
-            if (existing != null) interactionHeader = existing.GetComponent<Text>();
+            if (existing != null)
+                interactionHeader = existing.GetComponent<Text>();
             else
             {
                 GameObject go = new GameObject("UX18_InteractionHeader", typeof(RectTransform), typeof(Text));
@@ -256,6 +271,7 @@ namespace SandPlanet.Prototype
 
             RectTransform root = interactionRoot as RectTransform;
             if (root != null) SetRect(root, new Vector2(.06f, .055f), new Vector2(.94f, .865f));
+
             DisableContentSizeFitter(interactionRoot);
             VerticalLayoutGroup layout = interactionRoot.GetComponent<VerticalLayoutGroup>();
             if (layout != null)
@@ -277,7 +293,7 @@ namespace SandPlanet.Prototype
         private void ApplyDialogueLayout()
         {
             RectTransform panel = modalPanel.GetComponent<RectTransform>();
-            SetRect(panel, new Vector2(.74f, .035f), new Vector2(.985f, .835f));
+            SetRect(panel, RightPanelMin, RightPanelMax);
 
             Image image = modalPanel.GetComponent<Image>();
             if (image != null)
@@ -308,7 +324,8 @@ namespace SandPlanet.Prototype
             }
 
             RectTransform root = modalButtonRoot as RectTransform;
-            if (root != null) SetRect(root, new Vector2(.06f, .035f), new Vector2(.94f, .365f));
+            if (root != null) SetRect(root, new Vector2(.06f, .025f), new Vector2(.94f, .365f));
+
             DisableContentSizeFitter(modalButtonRoot);
             VerticalLayoutGroup layout = modalButtonRoot.GetComponent<VerticalLayoutGroup>();
             if (layout != null)
@@ -322,12 +339,33 @@ namespace SandPlanet.Prototype
                 layout.childControlHeight = true;
                 layout.childForceExpandHeight = false;
             }
+
             StyleTemplate(modalButtonTemplate, 58f, 15, TextAnchor.MiddleCenter);
+        }
+
+        private void EnforceFinalGeometry()
+        {
+            // This is intentionally small: only final geometry/color values are reasserted.
+            // It prevents legacy Start-order code from moving the panels after our setup.
+            if (locationPanel != null)
+            {
+                SetRect(locationPanel.GetComponent<RectTransform>(), LocationMin, LocationMax);
+                Image bg = locationPanel.GetComponent<Image>();
+                if (bg != null) bg.color = ScenePanelColor;
+            }
+
+            if (interactionPanel != null)
+                SetRect(interactionPanel.GetComponent<RectTransform>(), RightPanelMin, RightPanelMax);
+
+            if (modalPanel != null)
+                SetRect(modalPanel.GetComponent<RectTransform>(), RightPanelMin, RightPanelMax);
         }
 
         private void RefreshBeforeRender()
         {
             if (!enabled || content == null) return;
+
+            EnforceFinalGeometry();
 
             bool modalBusy = GetBool(modalBusyField);
             string locationId = GetString(currentLocationField);
@@ -353,7 +391,10 @@ namespace SandPlanet.Prototype
                 StyleModalButtons();
                 RefreshSpeakerPortrait();
             }
-            else SetSpeakerPortrait(string.Empty);
+            else
+            {
+                SetSpeakerPortrait(string.Empty);
+            }
         }
 
         private string SelectedTargetHeader()
@@ -361,7 +402,8 @@ namespace SandPlanet.Prototype
             string raw = locationHint != null ? locationHint.text ?? string.Empty : string.Empty;
             int separator = raw.IndexOf(" — ", StringComparison.Ordinal);
             if (separator >= 0) raw = raw.Substring(0, separator);
-            if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("사람/사물", StringComparison.Ordinal)) return "무엇을 할까";
+            if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith("사람/사물", StringComparison.Ordinal))
+                return "무엇을 할까";
             return raw;
         }
 
@@ -387,6 +429,7 @@ namespace SandPlanet.Prototype
                     IdentifyTarget(label.text, view);
                 }
                 if (string.IsNullOrEmpty(view.TargetId)) IdentifyTarget(label.text, view);
+
                 RemoveLegacyPrefix(label);
                 label.raycastTarget = false;
 
@@ -396,13 +439,17 @@ namespace SandPlanet.Prototype
 
             characters = characters.OrderBy(TargetName).ToList();
             objects = objects.OrderBy(TargetName).ToList();
-            for (int i = 0; i < characters.Count; i++) StyleCharacterTarget(characters[i], CharacterSlots[i % CharacterSlots.Length]);
-            for (int i = 0; i < objects.Count; i++) StyleObjectTarget(objects[i], ObjectSlots[i % ObjectSlots.Length]);
+
+            for (int i = 0; i < characters.Count; i++)
+                StyleCharacterTarget(characters[i], CharacterSlots[i % CharacterSlots.Length]);
+            for (int i = 0; i < objects.Count; i++)
+                StyleObjectTarget(objects[i], ObjectSlots[i % ObjectSlots.Length]);
         }
 
         private void IdentifyTarget(string rawLabel, SceneTargetView04 view)
         {
             string raw = rawLabel ?? string.Empty;
+
             foreach (SandPlanetCharacter04 c in content.Characters.Values)
             {
                 if (!c.Active || raw.IndexOf(c.Name, StringComparison.Ordinal) < 0) continue;
@@ -410,6 +457,7 @@ namespace SandPlanet.Prototype
                 view.TargetId = c.Id;
                 return;
             }
+
             foreach (SandPlanetWorldTarget04 w in content.WorldTargets.Values)
             {
                 if (!w.Active || raw.IndexOf(w.Name, StringComparison.Ordinal) < 0) continue;
@@ -422,8 +470,10 @@ namespace SandPlanet.Prototype
         private static void RemoveLegacyPrefix(Text label)
         {
             if (label == null || string.IsNullOrEmpty(label.text)) return;
-            if (label.text.StartsWith("인물  ", StringComparison.Ordinal)) label.text = label.text.Substring("인물  ".Length);
-            else if (label.text.StartsWith("사물  ", StringComparison.Ordinal)) label.text = label.text.Substring("사물  ".Length);
+            if (label.text.StartsWith("인물  ", StringComparison.Ordinal))
+                label.text = label.text.Substring("인물  ".Length);
+            else if (label.text.StartsWith("사물  ", StringComparison.Ordinal))
+                label.text = label.text.Substring("사물  ".Length);
         }
 
         private void StyleCharacterTarget(SceneTargetView04 view, Vector2 slot)
@@ -439,7 +489,7 @@ namespace SandPlanet.Prototype
             rect.sizeDelta = new Vector2(120f, 158f);
 
             Image buttonBg = button.GetComponent<Image>();
-            if (buttonBg != null) buttonBg.color = new Color(.05f, .035f, .025f, .58f);
+            if (buttonBg != null) buttonBg.color = new Color(.03f, .035f, .04f, .62f);
 
             label.fontSize = 14;
             label.fontStyle = FontStyle.Bold;
@@ -464,13 +514,14 @@ namespace SandPlanet.Prototype
                 portrait = portraitTransform.GetComponent<Image>();
                 portraitTransform.gameObject.SetActive(true);
             }
+
             SetRect(portrait.rectTransform, new Vector2(.06f, .23f), new Vector2(.94f, .96f));
 
             if (content.Characters.TryGetValue(view.TargetId, out SandPlanetCharacter04 character))
             {
                 Sprite sprite = GetPortraitSprite(character);
                 portrait.sprite = sprite;
-                portrait.color = sprite != null ? Color.white : new Color(.25f, .22f, .20f, 1f);
+                portrait.color = sprite != null ? Color.white : new Color(.22f, .25f, .28f, 1f);
             }
         }
 
@@ -487,7 +538,8 @@ namespace SandPlanet.Prototype
             rect.sizeDelta = new Vector2(172f, 46f);
 
             Image bg = button.GetComponent<Image>();
-            if (bg != null) bg.color = new Color(.16f, .09f, .05f, .70f);
+            if (bg != null) bg.color = new Color(.045f, .055f, .065f, .72f);
+
             label.fontSize = 13;
             label.fontStyle = FontStyle.Normal;
             label.alignment = TextAnchor.MiddleCenter;
@@ -506,12 +558,15 @@ namespace SandPlanet.Prototype
                 Transform child = interactionRoot.GetChild(i);
                 if (interactionTemplate != null && child == interactionTemplate.transform) continue;
                 if (!child.gameObject.activeSelf) continue;
+
                 Button button = child.GetComponent<Button>();
                 if (button == null) continue;
+
                 LayoutElement le = child.GetComponent<LayoutElement>();
                 if (le == null) le = child.gameObject.AddComponent<LayoutElement>();
                 le.minHeight = 78f;
                 le.preferredHeight = 78f;
+
                 Text text = button.GetComponentInChildren<Text>(true);
                 if (text != null)
                 {
@@ -531,12 +586,15 @@ namespace SandPlanet.Prototype
                 Transform child = modalButtonRoot.GetChild(i);
                 if (modalButtonTemplate != null && child == modalButtonTemplate.transform) continue;
                 if (!child.gameObject.activeSelf) continue;
+
                 Button button = child.GetComponent<Button>();
                 if (button == null) continue;
+
                 Text[] texts = button.GetComponentsInChildren<Text>(true);
                 foreach (Text text in texts)
                 {
-                    if (text.transform.IsChildOf(button.transform.Find("QuestActionChip"))) continue;
+                    Transform chip = button.transform.Find("QuestActionChip");
+                    if (chip != null && text.transform.IsChildOf(chip)) continue;
                     text.fontSize = 15;
                     text.alignment = TextAnchor.MiddleCenter;
                     text.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -562,7 +620,7 @@ namespace SandPlanet.Prototype
             speakerPortraitFrame = new GameObject("UX18_SpeakerPortraitFrame", typeof(RectTransform), typeof(Image));
             speakerPortraitFrame.transform.SetParent(modalPanel.transform, false);
             Image frame = speakerPortraitFrame.GetComponent<Image>();
-            frame.color = new Color(.05f, .04f, .035f, .96f);
+            frame.color = new Color(.04f, .045f, .05f, .96f);
             frame.raycastTarget = false;
 
             GameObject portraitGo = new GameObject("Portrait", typeof(RectTransform), typeof(Image));
@@ -574,12 +632,15 @@ namespace SandPlanet.Prototype
             GameObject nameGo = new GameObject("Name", typeof(RectTransform), typeof(Text));
             nameGo.transform.SetParent(speakerPortraitFrame.transform, false);
             speakerPortraitName = nameGo.GetComponent<Text>();
-            speakerPortraitName.font = modalTitle != null && modalTitle.font != null ? modalTitle.font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            speakerPortraitName.font = modalTitle != null && modalTitle.font != null
+                ? modalTitle.font
+                : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             speakerPortraitName.fontSize = 14;
             speakerPortraitName.fontStyle = FontStyle.Bold;
             speakerPortraitName.color = Color.white;
             speakerPortraitName.alignment = TextAnchor.MiddleCenter;
             speakerPortraitName.raycastTarget = false;
+
             ApplySpeakerPortraitLayout();
             speakerPortraitFrame.SetActive(false);
         }
@@ -587,13 +648,17 @@ namespace SandPlanet.Prototype
         private void ApplySpeakerPortraitLayout()
         {
             if (speakerPortraitFrame == null) return;
+
             RectTransform frame = speakerPortraitFrame.GetComponent<RectTransform>();
             frame.anchorMin = frame.anchorMax = new Vector2(0f, .67f);
             frame.pivot = new Vector2(1f, .5f);
             frame.anchoredPosition = new Vector2(-14f, 0f);
             frame.sizeDelta = new Vector2(150f, 210f);
-            if (speakerPortrait != null) SetRect(speakerPortrait.rectTransform, new Vector2(.05f, .16f), new Vector2(.95f, .96f));
-            if (speakerPortraitName != null) SetRect(speakerPortraitName.rectTransform, new Vector2(.04f, .02f), new Vector2(.96f, .16f));
+
+            if (speakerPortrait != null)
+                SetRect(speakerPortrait.rectTransform, new Vector2(.05f, .16f), new Vector2(.95f, .96f));
+            if (speakerPortraitName != null)
+                SetRect(speakerPortraitName.rectTransform, new Vector2(.04f, .02f), new Vector2(.96f, .16f));
         }
 
         private void RefreshSpeakerPortrait() => SetSpeakerPortrait(CurrentSpeakerCharacterId());
@@ -606,11 +671,14 @@ namespace SandPlanet.Prototype
             IEnumerable<SandPlanetFlowNode04> rows = Enumerable.Empty<SandPlanetFlowNode04>();
             SandPlanetInteractionFlow04 interactionFlow = activeInteractionFlowField?.GetValue(controller) as SandPlanetInteractionFlow04;
             SandPlanetEventFlow04 eventFlow = activeEventFlowField?.GetValue(controller) as SandPlanetEventFlow04;
+
             if (interactionFlow != null) rows = interactionFlow.GetNodeRows(nodeId);
             else if (eventFlow != null) rows = eventFlow.GetNodeRows(nodeId);
 
             SandPlanetFlowNode04 row = rows.FirstOrDefault(r => r.Active);
-            if (row == null || !string.Equals(row.PresentationType, "DIALOGUE", StringComparison.OrdinalIgnoreCase)) return string.Empty;
+            if (row == null || !string.Equals(row.PresentationType, "DIALOGUE", StringComparison.OrdinalIgnoreCase))
+                return string.Empty;
+
             string speaker = row.Speaker ?? string.Empty;
             return content.Characters.ContainsKey(speaker) ? speaker : string.Empty;
         }
@@ -645,16 +713,22 @@ namespace SandPlanet.Prototype
         {
             if (character == null) return null;
             if (portraitCache.TryGetValue(character.Id, out Sprite cached)) return cached;
+
 #if UNITY_EDITOR
             string path = "Assets/SandPlanet/Art/Portraits/" + character.Name + ".png";
             Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
             if (texture != null)
             {
-                Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(.5f, .5f), 100f);
+                Sprite sprite = Sprite.Create(
+                    texture,
+                    new Rect(0f, 0f, texture.width, texture.height),
+                    new Vector2(.5f, .5f),
+                    100f);
                 portraitCache[character.Id] = sprite;
                 return sprite;
             }
 #endif
+
             portraitCache[character.Id] = null;
             return null;
         }
@@ -670,10 +744,12 @@ namespace SandPlanet.Prototype
         private static void StyleTemplate(Button template, float height, int fontSize, TextAnchor alignment)
         {
             if (template == null) return;
+
             LayoutElement le = template.GetComponent<LayoutElement>();
             if (le == null) le = template.gameObject.AddComponent<LayoutElement>();
             le.minHeight = height;
             le.preferredHeight = height;
+
             Text text = template.GetComponentInChildren<Text>(true);
             if (text != null)
             {
