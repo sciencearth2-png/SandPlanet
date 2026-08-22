@@ -8,10 +8,13 @@ using UnityEngine.UI;
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Prototype 0.4/v1.7 presentation patch for quest-offer buttons.
-    /// Quest type is already communicated by color, so OFFER entries display
-    /// the actual quest title instead of [MAIN ?] / [CHAR ?] / [SIDE ?].
-    /// Progress entries keep the existing marker presentation.
+    /// Prototype 0.4/v1.7 presentation patch for quest-linked interaction buttons.
+    ///
+    /// Interaction buttons must describe what Jay actually does or says. Quest metadata
+    /// is secondary information only, so the natural EntryText stays on the first line
+    /// and the quest title appears as a small colored ?/! hint underneath.
+    /// MAIN / CHARACTER / SIDE text labels are intentionally omitted because color
+    /// already communicates quest type.
     /// </summary>
     [DefaultExecutionOrder(12000)]
     public sealed class SandPlanetPrototype04QuestOfferLabels : MonoBehaviour
@@ -87,15 +90,27 @@ namespace SandPlanet.Prototype
                 foreach (SandPlanetInteraction04 interaction in content.Interactions)
                 {
                     if (interaction == null ||
-                        !string.Equals(interaction.QuestRole, "OFFER", StringComparison.OrdinalIgnoreCase) ||
                         string.IsNullOrEmpty(interaction.QuestId) ||
-                        string.IsNullOrEmpty(interaction.DisplayText) ||
-                        !label.text.EndsWith(interaction.DisplayText, StringComparison.Ordinal))
+                        string.IsNullOrEmpty(interaction.DisplayText))
                         continue;
 
+                    string role = (interaction.QuestRole ?? string.Empty).ToUpperInvariant();
+                    if (role != "OFFER" && role != "PROGRESS") continue;
+
+                    // Fresh buttons are created by the controller as "badge + EntryText".
+                    // Once rewritten, they already start with EntryText; do not keep rewriting.
+                    bool freshControllerLabel = label.text.EndsWith(interaction.DisplayText, StringComparison.Ordinal);
+                    bool alreadyNaturalLabel = label.text.StartsWith(interaction.DisplayText + "\n", StringComparison.Ordinal);
+                    if (!freshControllerLabel && !alreadyNaturalLabel) continue;
+
                     if (!content.Quests.TryGetValue(interaction.QuestId, out SandPlanetQuest04 quest)) break;
+
+                    string marker = role == "OFFER" ? "?" : "!";
+                    string worldMarker = string.Equals(interaction.EntryMode, "WORLD_MARKER", StringComparison.OrdinalIgnoreCase) ? "◆ " : string.Empty;
+                    string hint = $"<size=12><color={QuestColor(quest.Type)}>{marker} {quest.Title}</color></size>";
+
                     label.supportRichText = true;
-                    label.text = $"<color={QuestColor(quest.Type)}><b>[{quest.Title}] 수락</b></color>";
+                    label.text = worldMarker + interaction.DisplayText + "\n" + hint;
                     break;
                 }
             }
