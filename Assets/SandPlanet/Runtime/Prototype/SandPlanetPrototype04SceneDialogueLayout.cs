@@ -16,9 +16,9 @@ namespace SandPlanet.Prototype
     /// Final presentation authority for the Prototype 0.4 location/dialogue layout.
     /// Existing quest/interaction/event rules are unchanged.
     ///
-    /// Important: an older UX layer still writes legacy LocationPanel anchors during Start.
-    /// This component therefore owns the final panel geometry and reasserts it before render,
-    /// so execution-order differences cannot move the location scene back to the right side.
+    /// This component is the SINGLE owner of character/world-target placement.
+    /// Other presentation components may style colors/typography/layering, but must not
+    /// write target anchors, positions, sizes, or scale.
     /// </summary>
     [DefaultExecutionOrder(20000)]
     public sealed class SandPlanetPrototype04SceneDialogueLayout : MonoBehaviour
@@ -33,32 +33,27 @@ namespace SandPlanet.Prototype
         private static readonly Vector2 RightPanelMin = new Vector2(.739f, .018f);
         private static readonly Vector2 RightPanelMax = new Vector2(.995f, .837f);
 
-        // Dark, slightly transparent temporary location backdrop.
         private static readonly Color ScenePanelColor = new Color(.025f, .030f, .035f, .90f);
 
-        // Final browse composition. TargetRoot is scaled to 1.5x elsewhere, so these positions
-        // deliberately stay inside a tighter safe area. ID-order below maps settlement characters
-        // as Diya -> Jina -> Sam, keeping Jina away from the clipping edge.
+        // Fallback positions only. Current authored Week 1 targets use explicit ID-based slots below.
         private static readonly Vector2[] CharacterSlots =
         {
-            new Vector2(.28f, .69f),
-            new Vector2(.48f, .55f),
-            new Vector2(.64f, .68f),
-            new Vector2(.33f, .43f),
-            new Vector2(.57f, .43f),
-            new Vector2(.45f, .63f)
+            new Vector2(.27f, .72f),
+            new Vector2(.50f, .56f),
+            new Vector2(.69f, .72f),
+            new Vector2(.30f, .43f),
+            new Vector2(.59f, .42f),
+            new Vector2(.46f, .64f)
         };
 
-        // World targets are map elements, not a bottom toolbar. These slots intentionally mix
-        // lower/middle heights while remaining safe under the default 1.5x browse scale.
         private static readonly Vector2[] ObjectSlots =
         {
-            new Vector2(.31f, .40f),
-            new Vector2(.58f, .31f),
-            new Vector2(.53f, .52f),
-            new Vector2(.38f, .58f),
-            new Vector2(.63f, .44f),
-            new Vector2(.43f, .29f)
+            new Vector2(.23f, .37f),
+            new Vector2(.50f, .26f),
+            new Vector2(.71f, .39f),
+            new Vector2(.34f, .55f),
+            new Vector2(.66f, .53f),
+            new Vector2(.44f, .19f)
         };
 
         private SandPlanetPrototype04Controller controller;
@@ -191,7 +186,6 @@ namespace SandPlanet.Prototype
                 bg.raycastTarget = true;
             }
 
-            // Scene is behind the existing Quest / Log overlays, matching the reference composition.
             locationPanel.transform.SetSiblingIndex(Mathf.Min(1, locationPanel.transform.parent.childCount - 1));
 
             if (locationTitle != null)
@@ -204,7 +198,6 @@ namespace SandPlanet.Prototype
                 SetRect(locationTitle.rectTransform, new Vector2(.28f, .43f), new Vector2(.72f, .57f));
             }
 
-            // The controller still updates this text; it is used to derive the right-panel header.
             if (locationHint != null)
             {
                 locationHint.enabled = false;
@@ -350,8 +343,6 @@ namespace SandPlanet.Prototype
 
         private void EnforceFinalGeometry()
         {
-            // This is intentionally small: only final geometry/color values are reasserted.
-            // It prevents legacy Start-order code from moving the panels after our setup.
             if (locationPanel != null)
             {
                 SetRect(locationPanel.GetComponent<RectTransform>(), LocationMin, LocationMax);
@@ -376,7 +367,7 @@ namespace SandPlanet.Prototype
             string locationId = GetString(currentLocationField);
             bool locationOpen = !string.IsNullOrEmpty(locationId) && locationPanel.activeInHierarchy;
 
-            if (locationOpen) DecorateSceneTargets();
+            if (locationOpen) DecorateSceneTargets(locationId);
 
             bool hasChoices = DynamicButtonCount(interactionRoot, interactionTemplate) > 0;
             if (interactionPanel != null)
@@ -412,7 +403,7 @@ namespace SandPlanet.Prototype
             return raw;
         }
 
-        private void DecorateSceneTargets()
+        private void DecorateSceneTargets(string locationId)
         {
             List<SceneTargetView04> characters = new List<SceneTargetView04>();
             List<SceneTargetView04> objects = new List<SceneTargetView04>();
@@ -442,15 +433,86 @@ namespace SandPlanet.Prototype
                 else if (view.TargetType == "WORLD_TARGET") objects.Add(view);
             }
 
-            // Use stable IDs rather than display-name ordering. For the settlement this gives
-            // Diya -> Jina -> Sam, which is the approved redistributed composition.
             characters = characters.OrderBy(v => v.TargetId, StringComparer.Ordinal).ToList();
             objects = objects.OrderBy(v => v.TargetId, StringComparer.Ordinal).ToList();
 
             for (int i = 0; i < characters.Count; i++)
-                StyleCharacterTarget(characters[i], CharacterSlots[i % CharacterSlots.Length]);
+                StyleCharacterTarget(characters[i], CharacterSlotFor(locationId, characters[i].TargetId, i));
             for (int i = 0; i < objects.Count; i++)
-                StyleObjectTarget(objects[i], ObjectSlots[i % ObjectSlots.Length]);
+                StyleObjectTarget(objects[i], ObjectSlotFor(locationId, objects[i].TargetId, i));
+        }
+
+        private static Vector2 CharacterSlotFor(string locationId, string targetId, int fallbackIndex)
+        {
+            // Explicit slots are authored so known Week 1 targets never overlap at browse scale.
+            switch (locationId)
+            {
+                case "LOC_01_SETTLEMENT":
+                    switch (targetId)
+                    {
+                        case "CHA_DIYA": return new Vector2(.25f, .72f);
+                        case "CHA_JINA": return new Vector2(.48f, .57f);
+                        case "CHA_SAM":  return new Vector2(.70f, .72f);
+                    }
+                    break;
+
+                case "LOC_02_SHIP":
+                    switch (targetId)
+                    {
+                        case "CHA_BENJAMIN": return new Vector2(.28f, .72f);
+                        case "CHA_FAYE":     return new Vector2(.62f, .61f);
+                    }
+                    break;
+
+                case "LOC_04_OASIS":
+                    if (targetId == "CHA_BORICHI") return new Vector2(.30f, .70f);
+                    break;
+            }
+
+            return CharacterSlots[fallbackIndex % CharacterSlots.Length];
+        }
+
+        private static Vector2 ObjectSlotFor(string locationId, string targetId, int fallbackIndex)
+        {
+            // Objects are deliberately mixed through the lower/middle map instead of forming a toolbar.
+            // Coordinates are separated from character card bounds, so known Week 1 compositions do not overlap.
+            switch (locationId)
+            {
+                case "LOC_01_SETTLEMENT":
+                    switch (targetId)
+                    {
+                        case "OBJ_01_SETTLEMENT_BOARD":   return new Vector2(.23f, .38f);
+                        case "OBJ_01_SETTLEMENT_SHELTER": return new Vector2(.48f, .25f);
+                        case "OBJ_01_SETTLEMENT_REST":    return new Vector2(.72f, .39f);
+                    }
+                    break;
+
+                case "LOC_02_SHIP":
+                    switch (targetId)
+                    {
+                        case "OBJ_02_SHIP_OUTER_PANEL": return new Vector2(.26f, .35f);
+                        case "OBJ_02_SHIP_CONSOLE":     return new Vector2(.64f, .30f);
+                    }
+                    break;
+
+                case "LOC_03_GRAVEYARD":
+                    switch (targetId)
+                    {
+                        case "OBJ_03_GRAVE_MEMORIAL": return new Vector2(.31f, .56f);
+                        case "OBJ_03_GRAVE_BARRIER":  return new Vector2(.66f, .32f);
+                    }
+                    break;
+
+                case "LOC_04_OASIS":
+                    switch (targetId)
+                    {
+                        case "OBJ_04_OASIS_PUMP":  return new Vector2(.65f, .48f);
+                        case "OBJ_04_OASIS_WATER": return new Vector2(.48f, .27f);
+                    }
+                    break;
+            }
+
+            return ObjectSlots[fallbackIndex % ObjectSlots.Length];
         }
 
         private void IdentifyTarget(string rawLabel, SceneTargetView04 view)
