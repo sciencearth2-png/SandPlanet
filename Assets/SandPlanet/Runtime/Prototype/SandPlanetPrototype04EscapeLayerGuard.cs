@@ -8,8 +8,14 @@ using UnityEngine.UI;
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Runs before the legacy UX Escape handler so a selected target's interaction list
-    /// closes first. A second ESC then reaches the legacy handler and closes the location.
+    /// Owns the pre-Update ESC interception for the location interaction layer.
+    /// InputSystem.onAfterUpdate runs before MonoBehaviour.Update, so the legacy UX
+    /// handler cannot receive the same ESC frame after this layer consumes it.
+    ///
+    /// Order while a location is open:
+    /// 1) interaction-selection panel only
+    /// 2) location panel on the next ESC (handled by the legacy UX layer)
+    /// Modal dialogue/event ESC rules remain owned by the controller.
     /// </summary>
     [DefaultExecutionOrder(-30000)]
     public sealed class SandPlanetPrototype04EscapeLayerGuard : MonoBehaviour
@@ -19,12 +25,17 @@ namespace SandPlanet.Prototype
 
         private SandPlanetPrototype04Controller controller;
         private SandPlanetPrototype04UxEnhancer uxEnhancer;
+
         private FieldInfo currentLocationField;
         private FieldInfo modalBusyField;
         private FieldInfo locationHintField;
         private FieldInfo interactionRootField;
         private FieldInfo interactionTemplateField;
         private MethodInfo clearDynamicMethod;
+
+        private FieldInfo uxSelectedTargetTypeField;
+        private FieldInfo uxSelectedTargetIdField;
+        private int handledFrame = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -37,26 +48,38 @@ namespace SandPlanet.Prototype
         private void Awake()
         {
             controller = GetComponent<SandPlanetPrototype04Controller>();
-            uxEnhancer = GetComponent<SandPlanetPrototype04UxEnhancer>();
             if (controller == null)
             {
                 enabled = false;
                 return;
             }
 
-            Type t = controller.GetType();
-            currentLocationField = t.GetField("currentLocationId", PrivateInstance);
-            modalBusyField = t.GetField("modalBusy", PrivateInstance);
-            locationHintField = t.GetField("locationHintText", PrivateInstance);
-            interactionRootField = t.GetField("interactionRoot", PrivateInstance);
-            interactionTemplateField = t.GetField("interactionTemplate", PrivateInstance);
-            clearDynamicMethod = t.GetMethod("ClearDynamic", PrivateStatic);
+            Type controllerType = controller.GetType();
+            currentLocationField = controllerType.GetField("currentLocationId", PrivateInstance);
+            modalBusyField = controllerType.GetField("modalBusy", PrivateInstance);
+            locationHintField = controllerType.GetField("locationHintText", PrivateInstance);
+            interactionRootField = controllerType.GetField("interactionRoot", PrivateInstance);
+            interactionTemplateField = controllerType.GetField("interactionTemplate", PrivateInstance);
+            clearDynamicMethod = controllerType.GetMethod("ClearDynamic", PrivateStatic);
+
+            CacheUxEnhancer();
         }
 
-        private void Update()
+        private void OnEnable()
         {
-            if (Keyboard.current == null || !Keyboard.current.escapeKey.wasPressedThisFrame) return;
-            if (GetBool(modalBusyField)) return;
+            InputSystem.onAfterUpdate += OnAfterInputUpdate;
+        }
+
+        private void OnDisable()
+        {
+            InputSystem.onAfterUpdate -= OnAfterInputUpdate;
+        }
+
+        private void OnAfterInputUpdate()
+        {
+            if (!enabled || Keyboard.current == null || !Keyboard.current.escapeKey.wasPressedThisFrame) return;
+            if (handledFrame == Time.frameCount) return;
+            if (GetBool(modalBusyField)) return; // dialogue/event ESC remains controller-owned
 
             string locationId = currentLocationField?.GetValue(controller) as string;
             if (string.IsNullOrEmpty(locationId)) return;
@@ -65,6 +88,26 @@ namespace SandPlanet.Prototype
             Button template = interactionTemplateField?.GetValue(controller) as Button;
             if (!HasDynamicChoice(root, template)) return;
 
+            handledFrame = Time.frameCount;
+            CacheUxEnhancer();
+
+            // Disable the later legacy Update before the Update loop begins.
+            bool reenableUx = uxEnhancer != null && uxEnhancer.enabled;
+            if (reenableUx) uxEnhancer.enabled = false;
+
+            // Hide immediately so the right panel cannot be re-enabled during this render.
+            if (root != null)
+            {
+                for (int i = root.childCount - 1; i >= 0; i--)
+                {
+                    Transform child = root.GetChild(i);
+                    if (template != null && child == template.transform) continue;
+                    child.gameObject.SetActive(false);
+                }
+                if (root.parent != null) root.parent.gameObject.SetActive(false);
+            }
+
+            // Then destroy the authored dynamic choices through the controller's own helper.
             if (clearDynamicMethod != null)
             {
                 try { clearDynamicMethod.Invoke(null, new object[] { root, template }); }
@@ -75,15 +118,26 @@ namespace SandPlanet.Prototype
             if (hint != null)
                 hint.text = "사람/사물을 선택하면 현재 가능한 상호작용이 표시됩니다.";
 
-            // Prevent the legacy UX Update from receiving this same key-down frame.
-            if (uxEnhancer != null && uxEnhancer.enabled)
+            if (uxEnhancer != null)
             {
-                uxEnhancer.enabled = false;
-                StartCoroutine(ReenableNextFrame());
+                try { uxSelectedTargetTypeField?.SetValue(uxEnhancer, null); } catch { }
+                try { uxSelectedTargetIdField?.SetValue(uxEnhancer, null); } catch { }
             }
+
+            if (reenableUx) StartCoroutine(ReenableUxNextFrame());
         }
 
-        private IEnumerator ReenableNextFrame()
+        private void CacheUxEnhancer()
+        {
+            if (uxEnhancer == null) uxEnhancer = GetComponent<SandPlanetPrototype04UxEnhancer>();
+            if (uxEnhancer == null) return;
+
+            Type uxType = uxEnhancer.GetType();
+            uxSelectedTargetTypeField = uxType.GetField("selectedTargetType", PrivateInstance);
+            uxSelectedTargetIdField = uxType.GetField("selectedTargetId", PrivateInstance);
+        }
+
+        private IEnumerator ReenableUxNextFrame()
         {
             yield return null;
             if (uxEnhancer != null) uxEnhancer.enabled = true;
