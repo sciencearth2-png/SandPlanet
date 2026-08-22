@@ -1,8 +1,8 @@
 ﻿QuestStepID,QuestID,StepOrder,StepTitle,StepBody,TrackerText,ProgressEventID,OnProgressEvent,NextStepID,Active,WriterNote
-QSTEP_W1_MAIN_01_AWAKE_01,QST_W1_MAIN_01_AWAKE,1,사고 이후의 시간을 듣는다,샘에게 사고 이후 생존 과정과 현재 공동체의 상태를 듣는다.,샘에게 사고 이후 상황을 듣기,EVT_W1_AWAKE_COMPLETE,COMPLETE_QUEST,,TRUE,Day 1 도입.
+QSTEP_W1_MAIN_01_AWAKE_01,QST_W1_MAIN_01_AWAKE,1,나를 기억하는 사람들을 다시 만난다,"벤자민에게 깨어난 뒤, 제이와 함께 출발했고 그를 기억하는 샘·지나·페이·보리치·디야를 직접 찾아가 사고 이후의 시간을 각자의 관점에서 듣는다.",핵심 동료 6명과 다시 만나기,EVT_W1_AWAKE_COMPLETE,COMPLETE_QUEST,,TRUE,Day1~2 도입. 이름 체크리스트 UI를 별도로 덧붙임.
 QSTEP_W1_MAIN_02_INVESTIGATION_01,QST_W1_MAIN_02_INVESTIGATION,1,오아시스를 조사한다,"보리치의 관측, 급수 펌프, 수원 중 적절한 경로를 이용해 장기 위험을 확인한다.",오아시스 장기 위험 조사,EVT_W1_OASIS_RISK_FOUND,SET_STEP,QSTEP_W1_MAIN_02_INVESTIGATION_02,TRUE,여러 조사 방법이 같은 Event를 발생.
 QSTEP_W1_MAIN_02_INVESTIGATION_02,QST_W1_MAIN_02_INVESTIGATION,2,결과를 공유한다,확인한 위험을 샘에게 보고한다.,샘에게 조사 결과 보고,EVT_W1_INVEST_REPORT_DONE,COMPLETE_QUEST,,TRUE,보고 자체도 1h 소모.
-QSTEP_W1_MAIN_03_DISCLOSURE_01,QST_W1_MAIN_03_DISCLOSURE,1,공개 범위를 결정한다,Day 7. 정보를 공개하는 방식과 그 후속 과정을 선택한다.,진실 공개 범위 결정,,NONE,,TRUE,두 선택이 서로 다른 Event를 발생시키므로 Choice가 직접 Quest 완료.
+QSTEP_W1_MAIN_03_DISCLOSURE_01,QST_W1_MAIN_03_DISCLOSURE,1,공개 범위를 준비하고 결정한다,"조사 결과를 샘과 공유한 뒤 Day3~6 동안 전체 공개와 제한 공개의 리스크를 확인·대비하고, Day7 최종 공개 범위를 결정한다.",Day7까지 공개 방식과 대비를 결정하기,,NONE,,TRUE,준비 Interaction은 이 Step의 PROGRESS. 최종 선택은 Day7 FLOW_W1_DISCLOSURE.
 QSTEP_W2_MAIN_01_STORM_WARNING_01,QST_W2_MAIN_01_STORM_WARNING,1,폭풍 징후를 확인한다,보리치와 현재 관측을 검토해 대형 모래폭풍의 접근을 확인한다.,보리치와 폭풍 징후 확인,EVT_W2_STORM_CONFIRMED,COMPLETE_QUEST,,TRUE,지속 기간은 아직 모름.
 QSTEP_W2_MAIN_02_SHELTER_01,QST_W2_MAIN_02_SHELTER,1,수송선을 피난처로 정한다,샘과 기술자들과 수송선의 수용 가능성을 점검하고 피난처 전환을 확정한다.,수송선 피난 계획 확정,EVT_W2_SHELTER_DECIDED,COMPLETE_QUEST,,TRUE,Week2 준비의 기준점.
 QSTEP_W2_MAIN_03_EVAC_PREP_01,QST_W2_MAIN_03_EVAC_PREP,1,피난 준비도를 채운다,반복 준비 행동과 주요 준비 퀘스트를 통해 피난 준비도를 올린다.,피난 준비도 4 이상 만들기,EVT_W2_EVAC_READY,COMPLETE_QUEST,,TRUE,STA_W2_EVAC_PROGRESS >= 4 Trigger.
@@ -13,7 +13,7 @@ QSTEP_W3_MAIN_02_STORM_ANALYSIS_02,QST_W3_MAIN_02_STORM_ANALYSIS,2,지질·기�
 QSTEP_W3_MAIN_03_FORECAST_01,QST_W3_MAIN_03_FORECAST,1,폭풍의 끝을 발표한다,샘과 함께 관측 결과를 정리하고 사람들에게 예상 종료 시점과 피해를 설명한다.,Day 21 종료 예측 발표,EVT_W3_FORECAST_ANNOUNCED,COMPLETE_QUEST,,TRUE,이 Event부터 미래 입장 퀘스트 개방.
 QSTEP_W3_MAIN_04_FUTURE_01,QST_W3_MAIN_04_FUTURE,1,여섯 사람의 입장을 확인한다,샘·지나·페이·벤자민·보리치·디야와 대화해 미래 입장 대화 6회를 마친다.,주요 인물 6명과 미래를 이야기하기,EVT_W3_FUTURE_TALKS_COMPLETE,COMPLETE_QUEST,,TRUE,STA_W3_FUTURE_TALKS_DONE >= 6 Trigger.
 QSTEP_W3_MAIN_05_DAY21_01,QST_W3_MAIN_05_DAY21,1,수송선 밖으로 나간다,외부 출입구를 열고 거주지·오아시스·묘지·수송선 외부 상태를 확인한다.,폭풍이 그친 행성 확인,EVT_W3_OUTSIDE_ASSESSED,COMPLETE_QUEST,,TRUE,이후 EndingEvaluator로 넘어감.
-QSTEP_CHAR_BENJAMIN_01_NAMES,QST_CHAR_BENJAMIN,1,남겨진 이름들을 듣는다,벤자민과 묘지를 걸으며 그가 잃은 사람과 이 장소가 가진 의미를 이해한다.,벤자민과 묘지를 함께 걷기,EVT_W1_BEN_NAMES_DONE,SET_STEP,QSTEP_CHAR_BENJAMIN_02_GRAVES,TRUE,Week1. 완료 후 Week2 단계로 이어짐.
+QSTEP_CHAR_BENJAMIN_01_NAMES,QST_CHAR_BENJAMIN,1,남겨진 이름들을 듣는다,"벤자민과 묘지를 걸으며 불시착 당시 죽은 아내와 아이의 이름, 그리고 그가 이 장소를 떠나지 못하는 이유를 처음 듣는다.",벤자민과 묘지를 걷고 남겨진 이름 듣기,EVT_W1_BEN_NAMES_DONE,SET_STEP,QSTEP_CHAR_BENJAMIN_02_GRAVES,TRUE,Week1. 상실을 한 장면에서 극복시키지 않고 Week2 보존·Week3 미래로 이어짐.
 QSTEP_CHAR_BENJAMIN_02_GRAVES,QST_CHAR_BENJAMIN,2,무엇을 남길지 결정한다,폭풍 전에 묘지와 기록을 어디까지 지킬지 벤자민과 결정한다.,벤자민과 묘지 보존 여부 결정,,NONE,,TRUE,Week2. 두 분기 Event가 Step3로 직접 이동.
 QSTEP_CHAR_BENJAMIN_03_FUTURE,QST_CHAR_BENJAMIN,3,죽은 사람과 산 사람의 미래를 말한다,"폭풍 뒤 이 행성을 떠날지, 남은 기억과 함께 살아갈지를 벤자민과 이야기한다.",벤자민과 폭풍 뒤의 삶 이야기,,NONE,,TRUE,Week3 Main 미래 대화와 교차. 해당 퀘스트가 ACTIVE일 때 미래 Event가 완료 처리.
 QSTEP_CHAR_SAM_01_BURDEN,QST_CHAR_SAM,1,책임지는 사람의 하루를 본다,샘이 사람들의 요구와 생존 결정을 떠안는 방식을 가까이서 본다.,샘의 일을 함께 처리하기,EVT_W1_SAM_BURDEN_DONE,SET_STEP,QSTEP_CHAR_SAM_02_FUTURE,TRUE,Week1 → Week3 장기 서사.
