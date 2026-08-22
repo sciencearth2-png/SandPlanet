@@ -308,7 +308,7 @@ namespace SandPlanet.Prototype
             SetRect(checklist.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 8f), new Vector2(-8f, -8f));
             checklist.lineSpacing = 1.04f;
 
-            string text = "<color=#8EC5E8><b>다시 만날 사람들</b></color>\n";
+            string text = "<color=#8EC5E8>다시 만날 사람들</color>\n";
             foreach (Entry entry in ReunionEntries)
             {
                 bool met = states.TryGetValue(entry.StateId, out string raw) && string.Equals(raw, "TRUE", StringComparison.OrdinalIgnoreCase);
