@@ -9,13 +9,15 @@
 ## Read first
 작업 전 아래 순서로 읽는다.
 1. `docs/W1_NARRATIVE_SYSTEM_v1_7.md`
-2. `docs/PROTOTYPE_0_4_RUN.md`
-3. `docs/DESIGN_STATE.md`
-4. `docs/PROTOTYPE_SCOPE.md`
-5. `docs/UNITY_ARCHITECTURE.md`
+2. `docs/NARRATIVE_REVERSE_DESIGN_v0_1.md`
+3. `docs/PROTOTYPE_0_4_RUN.md`
+4. `docs/DESIGN_STATE.md`
+5. `docs/PROTOTYPE_SCOPE.md`
+6. `docs/UNITY_ARCHITECTURE.md`
 
 ## Source of truth
 - Week 1 서사/시스템 합의: `docs/W1_NARRATIVE_SYSTEM_v1_7.md`
+- 현재 진행 중인 엔딩 역산 기반 내러티브/Week 3 재설계: `docs/NARRATIVE_REVERSE_DESIGN_v0_1.md`
 - 현재 런타임/데이터 계약: `docs/PROTOTYPE_0_4_RUN.md`
 - 현재 기획 상태: `docs/DESIGN_STATE.md`
 - 현재 Prototype 범위: `docs/PROTOTYPE_SCOPE.md`
@@ -89,7 +91,7 @@
 - 21일 / 3주.
 - Week 1: D1~2 재회·상황 파악 → D3~6 오아시스 조사·보고 → D7 공개 범위 선택.
 - Week 2: 폭풍 대비, 수송선 생존 준비, 정착지/오아시스/묘지/수송선 외부 보존 선택.
-- Week 3: 수송선 내부 4구역, 폭풍 생존, 관측/미래 대화, D21 결말.
+- Week 3: 수송선 내부 4구역, 폭풍 생존, 관측/미래 대화, D21 결말. 최신 상세 재설계는 `docs/NARRATIVE_REVERSE_DESIGN_v0_1.md`를 우선 확인한다.
 - 기본 행동 가능 시간 08:00~22:00.
 - 시간대: Morning 06:00~11:59 / Afternoon 12:00~16:59 / Evening 17:00~22:00.
 - 최대 의지 기본 5, 수면 +2, 휴식 3시간 → +1.
