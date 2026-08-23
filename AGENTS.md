@@ -10,14 +10,16 @@
 작업 전 아래 순서로 읽는다.
 1. `docs/W1_NARRATIVE_SYSTEM_v1_7.md`
 2. `docs/NARRATIVE_REVERSE_DESIGN_v0_1.md`
-3. `docs/PROTOTYPE_0_4_RUN.md`
-4. `docs/DESIGN_STATE.md`
-5. `docs/PROTOTYPE_SCOPE.md`
-6. `docs/UNITY_ARCHITECTURE.md`
+3. `docs/NARRATIVE_ARCS_AND_INTEGRATION_v0_2.md`
+4. `docs/PROTOTYPE_0_4_RUN.md`
+5. `docs/DESIGN_STATE.md`
+6. `docs/PROTOTYPE_SCOPE.md`
+7. `docs/UNITY_ARCHITECTURE.md`
 
 ## Source of truth
 - Week 1 서사/시스템 합의: `docs/W1_NARRATIVE_SYSTEM_v1_7.md`
-- 현재 진행 중인 엔딩 역산 기반 내러티브/Week 3 재설계: `docs/NARRATIVE_REVERSE_DESIGN_v0_1.md`
+- 엔딩 역산 기반 Week 3 시설/생존 상세 및 런타임 충돌 분석: `docs/NARRATIVE_REVERSE_DESIGN_v0_1.md`
+- **최신 캐릭터 아크 / True·Hidden 전개 / 서브 캐릭터 / 서사-시스템 통합 원칙:** `docs/NARRATIVE_ARCS_AND_INTEGRATION_v0_2.md`
 - 현재 런타임/데이터 계약: `docs/PROTOTYPE_0_4_RUN.md`
 - 현재 기획 상태: `docs/DESIGN_STATE.md`
 - 현재 Prototype 범위: `docs/PROTOTYPE_SCOPE.md`
@@ -26,6 +28,7 @@
 - Generated CSV: `Assets/SandPlanet/Data/Generated/CSV/`
 
 문서와 실제 코드가 충돌하면 임의로 새 패치 코드를 추가하지 말고 먼저 충돌 지점을 설명한다.
+서사 세부에서 `NARRATIVE_REVERSE_DESIGN_v0_1.md`의 오래된 초안과 `NARRATIVE_ARCS_AND_INTEGRATION_v0_2.md`가 충돌하면 **v0.2의 최신 합의를 우선**하고 구현 전에 영향 범위를 확인한다.
 
 ## Work classification before implementation
 모든 요청은 구현 전에 아래 중 하나로 분류한다.
@@ -86,24 +89,29 @@
 - Quest는 Main / Character / Side 진행 추적과 UI 역할을 한다.
 - 현재 runtime은 explicit `QuestAction`과 기존 `ProgressEventID/OnProgressEvent`를 모두 지원한다. 둘 중 하나를 제거/통합하려면 authoring migration을 별도 승인받는다.
 - Quest 상태를 임의의 Day/State 하드코딩으로 직접 변경하지 않는다.
+- Character Stance는 단순 Affinity threshold로 자동 변경하지 않는다. 의미 있는 Quest/Event 결과가 변화를 만든다.
+- Facility Integrity 자체가 캐릭터 감정을 직접 바꾸지 않는다. `시설 상태 → Character/Event 가능 → Event 결과 → Stance 변화` 순서를 우선한다.
 
 ## Current core rules
 - 21일 / 3주.
 - Week 1: D1~2 재회·상황 파악 → D3~6 오아시스 조사·보고 → D7 공개 범위 선택.
-- Week 2: 폭풍 대비, 수송선 생존 준비, 정착지/오아시스/묘지/수송선 외부 보존 선택.
-- Week 3: 수송선 내부 4구역, 폭풍 생존, 관측/미래 대화, D21 결말. 최신 상세 재설계는 `docs/NARRATIVE_REVERSE_DESIGN_v0_1.md`를 우선 확인한다.
+- Week 2: 폭풍 발견/대비, 수송선 피난 준비, 정착지/오아시스/묘지 보존, Character Arc 시험.
+- Week 3: 수송선 내부 4구역, 시설/사람 배치 기반 폭풍 생존, D15 종료 후 미래 결정 선언, D21 결말.
+- 최신 Character/Ending 흐름은 `docs/NARRATIVE_ARCS_AND_INTEGRATION_v0_2.md`, Week 3 시설 세부는 `docs/NARRATIVE_REVERSE_DESIGN_v0_1.md`를 함께 확인한다.
 - 기본 행동 가능 시간 08:00~22:00.
+- 하루 종료 후 22:00→08:00 Overnight Phase에서 세계시간은 계속 흐르며 야간조가 최소 운영/감시를 담당한다.
 - 시간대: Morning 06:00~11:59 / Afternoon 12:00~16:59 / Evening 17:00~22:00.
 - 최대 의지 기본 5, 수면 +2, 휴식 3시간 → +1.
 - 개인 / 대인 / 기술: Lv + XP, 시작 Lv 합계 6, 6XP마다 즉시 Lv +1.
-- 호감도 0~5, 설득과 별개.
+- 호감도 0~5, 설득/미래 Stance와 별개.
 - Soft Requirement는 의지로 보완 가능, Hard Requirement는 불가.
+- 수송선 Integrity 목표: 전체 외벽 5/20, 조타실·엔진실·산소보급실·연구실·거주구역 2/5, 냉동창고·온실 5/5. 시작 총합 25/55.
 
 ## Current UI contract
 - Location viewport는 불투명하고 Quest/Log보다 위에 표시.
 - 장소명은 좌측 상단.
 - 캐릭터/사물은 viewport 안에 자연 배치하고 invisible clipping boundary를 사용.
-- 기본 map browse 배율 1.5x, target focus 2.0x.
+- 기본 map browse 배율 1.5x, target focus 최신 승인값 2.35x.
 - Interaction 선택 → dialogue 전환에서 장소 배치가 재정렬되거나 급변하면 안 된다.
 - 우측 panel은 Interaction 선택과 Narrative를 담당한다.
 - ESC는 가장 위 UI 계층부터 한 단계씩 닫는다.
