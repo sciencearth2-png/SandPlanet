@@ -20,6 +20,7 @@ namespace SandPlanet.Prototype
         private const float TypeDelay = .021f;
         private const float CommaDelay = .035f;
         private const float StopDelay = .075f;
+        private const float PreviewGap = 12f;
 
         private readonly Dictionary<string, Sprite> portraitCache = new Dictionary<string, Sprite>(StringComparer.Ordinal);
         private readonly List<string> transcript = new List<string>();
@@ -38,6 +39,10 @@ namespace SandPlanet.Prototype
         private ScrollRect narrativeScroll;
         private RectTransform narrativeContent;
         private GameObject typewriterOverlay;
+        private GameObject choicePreviewPopup;
+        private RectTransform choicePreviewRect;
+        private CanvasGroup choicePreviewGroup;
+        private Text choicePreviewText;
         private GameObject portraitFrame;
         private Image portraitImage;
         private Text portraitName;
@@ -82,6 +87,7 @@ namespace SandPlanet.Prototype
         {
             if (runtime != null) runtime.Changed -= Refresh;
             StopTypewriter();
+            HideChoicePreview();
         }
 
         private void ConfigureStaticLayout()
@@ -133,6 +139,7 @@ namespace SandPlanet.Prototype
             }
 
             CreateNarrativeScroll(font);
+            CreateChoicePreviewPopup(font);
             StyleTemplate(modalTemplate, 64f, 16, TextAnchor.MiddleLeft);
             interactionTemplate.gameObject.SetActive(false);
             modalTemplate.gameObject.SetActive(false);
@@ -230,9 +237,43 @@ namespace SandPlanet.Prototype
             typewriterOverlay.SetActive(false);
         }
 
+        private void CreateChoicePreviewPopup(Font font)
+        {
+            choicePreviewPopup = new GameObject("UX_NarrativeChoicePreviewPopup", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
+            choicePreviewPopup.transform.SetParent(canvas.transform, false);
+            choicePreviewRect = choicePreviewPopup.GetComponent<RectTransform>();
+            choicePreviewRect.anchorMin = choicePreviewRect.anchorMax = new Vector2(.5f, .5f);
+            choicePreviewRect.pivot = new Vector2(1f, .5f);
+            choicePreviewRect.sizeDelta = new Vector2(320f, 72f);
+
+            Image image = choicePreviewPopup.GetComponent<Image>();
+            image.color = new Color(.06f, .075f, .095f, .985f);
+            image.raycastTarget = false;
+
+            choicePreviewGroup = choicePreviewPopup.GetComponent<CanvasGroup>();
+            choicePreviewGroup.alpha = 0f;
+            choicePreviewGroup.interactable = false;
+            choicePreviewGroup.blocksRaycasts = false;
+
+            GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(Text));
+            textObject.transform.SetParent(choicePreviewPopup.transform, false);
+            SetRect(textObject.GetComponent<RectTransform>(), new Vector2(.045f, .08f), new Vector2(.955f, .92f));
+            choicePreviewText = textObject.GetComponent<Text>();
+            choicePreviewText.font = font;
+            choicePreviewText.fontSize = 16;
+            choicePreviewText.color = new Color(.88f, .92f, .96f, 1f);
+            choicePreviewText.alignment = TextAnchor.MiddleLeft;
+            choicePreviewText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            choicePreviewText.verticalOverflow = VerticalWrapMode.Truncate;
+            choicePreviewText.supportRichText = true;
+            choicePreviewText.raycastTarget = false;
+            choicePreviewPopup.SetActive(false);
+        }
+
         private void Refresh()
         {
             if (!enabled || runtime == null) return;
+            HideChoicePreview();
 
             if (runtime.ModalBusy)
             {
@@ -325,7 +366,7 @@ namespace SandPlanet.Prototype
 
             if (rows.Count == 0)
             {
-                CreateModalButton("닫기", true, runtime.CloseSimpleModal, null, string.Empty);
+                CreateModalButton("닫기", string.Empty, true, runtime.CloseSimpleModal, null, string.Empty);
             }
             else
             {
@@ -333,12 +374,15 @@ namespace SandPlanet.Prototype
                 {
                     bool canExecute = runtime.CanExecuteNode(row, out string reason, out _);
                     SandPlanetFlowNode04 captured = row;
-                    CreateModalButton(ChoiceLabel(row, canExecute, reason), canExecute,
+                    string requirement = RequirementLabel(row);
+                    if (!canExecute)
+                        requirement = string.IsNullOrEmpty(requirement) ? "잠김 · " + reason : requirement + "\n잠김 · " + reason;
+                    CreateModalButton(ChoiceLabel(row), requirement, canExecute,
                         () => ExecuteChoice(captured), QuestActionFor(row), PreviewFor(row, canExecute, reason));
                 }
 
                 if (runtime.HasActiveInteractionFlow && !runtime.FlowCommitted)
-                    CreateModalButton("취소", true, runtime.CancelFlow, null, string.Empty);
+                    CreateModalButton("취소", string.Empty, true, runtime.CancelFlow, null, string.Empty);
             }
 
             if (appended)
@@ -364,7 +408,7 @@ namespace SandPlanet.Prototype
             if (modalTitle != null) modalTitle.text = runtime.CurrentFlowTitle();
             transcript.Add(body);
             ClearDynamic(modalRoot, modalTemplate);
-            CreateModalButton("닫기", true, runtime.CloseSimpleModal, null, string.Empty);
+            CreateModalButton("닫기", string.Empty, true, runtime.CloseSimpleModal, null, string.Empty);
             StartTypewriter(string.Empty, body);
         }
 
@@ -424,6 +468,7 @@ namespace SandPlanet.Prototype
                 return;
             }
 
+            HideChoicePreview();
             AppendChosenText(row);
             if (modalBody != null) modalBody.text = string.Join("\n\n", transcript);
             ScrollToBottom();
@@ -450,7 +495,7 @@ namespace SandPlanet.Prototype
         private static bool LooksLikeActionChoice(string choice)
         {
             string t = TrimOuterQuotes(choice).Trim();
-            string[] endings = { "한다.", "한다", "는다.", "는다", "간다.", "간다", "본다.", "본다", "걷는다.", "걷는다", "돕는다.", "돕는다", "살핀다.", "살핀다", "기다린다.", "기다린다", "돌아간다.", "돌아간다", "둔다.", "둔다" };
+            string[] endings = { "한다.", "한다", "는다.", "는다", "간다.", "간다", "본다.", "본다", "걷는다.", "걷는다", "돕는다.", "돕는다", "살핀다.", "살핀다", "기다린다.", "기다린다", "돌아간다.", "돌아간다", "둔다.", "둔다", "나눈다.", "나눈다", "확인한다.", "확인한다", "정리한다.", "정리한다", "읽는다.", "읽는다", "점검한다.", "점검한다", "쉰다.", "쉰다" };
             return endings.Any(e => t.EndsWith(e, StringComparison.Ordinal));
         }
 
@@ -531,17 +576,14 @@ namespace SandPlanet.Prototype
             typewriterRoutine = null;
             typing = false;
             if (typewriterOverlay != null) typewriterOverlay.SetActive(false);
+            HideChoicePreview();
         }
 
-        private string ChoiceLabel(SandPlanetFlowNode04 row, bool canExecute, string reason)
+        private string ChoiceLabel(SandPlanetFlowNode04 row)
         {
-            string label = string.IsNullOrEmpty(row.ChoiceText)
+            return string.IsNullOrEmpty(row.ChoiceText)
                 ? (string.IsNullOrEmpty(row.NextNodeId) ? "종료" : "계속")
                 : row.ChoiceText;
-            string requirement = RequirementLabel(row);
-            if (!string.IsNullOrEmpty(requirement)) label += "\n<size=13><color=#AFC4D6>" + requirement + "</color></size>";
-            if (!canExecute) label += "\n<size=12><color=#E7A0A0>잠김 · " + reason + "</color></size>";
-            return label;
         }
 
         private string RequirementLabel(SandPlanetFlowNode04 row)
@@ -723,29 +765,28 @@ namespace SandPlanet.Prototype
             if (click != null) button.onClick.AddListener(click);
         }
 
-        private void CreateModalButton(string label, bool interactable, UnityEngine.Events.UnityAction click, QuestBadge badge, string preview)
+        private void CreateModalButton(string label, string requirement, bool interactable, UnityEngine.Events.UnityAction click, QuestBadge badge, string preview)
         {
-            float height = badge == null ? (label.Contains("\n") ? 82f : 68f) : 100f;
+            float height = badge == null ? 74f : 100f;
             GameObject row = new GameObject("ChoiceRow", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
             row.transform.SetParent(modalRoot, false);
             LayoutElement rowLayout = row.GetComponent<LayoutElement>();
             rowLayout.minHeight = height;
             rowLayout.preferredHeight = height;
             HorizontalLayoutGroup horizontal = row.GetComponent<HorizontalLayoutGroup>();
-            horizontal.spacing = string.IsNullOrEmpty(preview) ? 0f : 9f;
+            horizontal.spacing = 0f;
             horizontal.padding = new RectOffset(0, 0, 0, 0);
             horizontal.childAlignment = TextAnchor.MiddleCenter;
             horizontal.childControlWidth = true;
-            horizontal.childForceExpandWidth = false;
+            horizontal.childForceExpandWidth = true;
             horizontal.childControlHeight = true;
             horizontal.childForceExpandHeight = true;
-
-            GameObject previewPanel = string.IsNullOrEmpty(preview) ? null : CreateChoicePreview(row.transform, preview);
 
             Button button = Instantiate(modalTemplate, row.transform);
             button.gameObject.SetActive(true);
             button.interactable = interactable;
             button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(HideChoicePreview);
             if (click != null) button.onClick.AddListener(click);
             LayoutElement buttonLayout = button.GetComponent<LayoutElement>();
             if (buttonLayout == null) buttonLayout = button.gameObject.AddComponent<LayoutElement>();
@@ -755,66 +796,91 @@ namespace SandPlanet.Prototype
             buttonLayout.preferredHeight = height;
 
             Text text = button.GetComponentInChildren<Text>(true);
+            int fontSize = badge == null ? 16 : 15;
+            bool hasRequirement = !string.IsNullOrWhiteSpace(requirement);
             if (text != null)
             {
                 text.text = label;
                 text.supportRichText = true;
-                text.fontSize = badge == null ? 16 : 15;
+                text.fontSize = fontSize;
                 text.alignment = TextAnchor.MiddleLeft;
                 text.horizontalOverflow = HorizontalWrapMode.Wrap;
                 text.verticalOverflow = VerticalWrapMode.Truncate;
-                SetRect(text.rectTransform, badge == null ? new Vector2(.035f,.08f) : new Vector2(.035f,.05f), badge == null ? new Vector2(.965f,.92f) : new Vector2(.965f,.62f));
+                Vector2 mainMin = badge == null ? new Vector2(.035f,.08f) : new Vector2(.035f,.05f);
+                Vector2 mainMax = badge == null ? new Vector2(hasRequirement ? .61f : .965f,.92f) : new Vector2(hasRequirement ? .61f : .965f,.62f);
+                SetRect(text.rectTransform, mainMin, mainMax);
             }
 
+            if (hasRequirement)
+                CreateRequirementText(button, text, requirement, fontSize, badge != null, interactable);
             if (badge != null) CreateQuestChip(button, text, badge);
-            if (previewPanel != null) AttachHover(button, previewPanel);
+            if (!string.IsNullOrEmpty(preview)) AttachHover(button, preview);
         }
 
-        private GameObject CreateChoicePreview(Transform parent, string preview)
+        private void CreateRequirementText(Button button, Text main, string requirement, int fontSize, bool hasBadge, bool interactable)
         {
-            GameObject panel = new GameObject("ChoicePreview", typeof(RectTransform), typeof(Image), typeof(CanvasGroup), typeof(LayoutElement));
-            panel.transform.SetParent(parent, false);
-            LayoutElement layout = panel.GetComponent<LayoutElement>();
-            layout.minWidth = 142f;
-            layout.preferredWidth = 142f;
-            layout.flexibleWidth = 0f;
-            Image image = panel.GetComponent<Image>();
-            image.color = new Color(.075f, .095f, .12f, .98f);
-            image.raycastTarget = false;
-            CanvasGroup group = panel.GetComponent<CanvasGroup>();
-            group.alpha = 0f;
-            group.interactable = false;
-            group.blocksRaycasts = false;
-
-            GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(Text));
-            textObject.transform.SetParent(panel.transform, false);
-            SetRect(textObject.GetComponent<RectTransform>(), new Vector2(.055f,.08f), new Vector2(.945f,.92f));
-            Text text = textObject.GetComponent<Text>();
-            text.font = modalTitle != null && modalTitle.font != null ? modalTitle.font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = 13;
-            text.color = new Color(.82f, .88f, .93f, 1f);
-            text.alignment = TextAnchor.MiddleLeft;
-            text.horizontalOverflow = HorizontalWrapMode.Wrap;
-            text.verticalOverflow = VerticalWrapMode.Truncate;
-            text.supportRichText = true;
-            text.raycastTarget = false;
-            text.text = preview;
-            return panel;
+            GameObject conditionObject = new GameObject("Requirement", typeof(RectTransform), typeof(Text));
+            conditionObject.transform.SetParent(button.transform, false);
+            Text condition = conditionObject.GetComponent<Text>();
+            condition.font = main != null && main.font != null ? main.font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            condition.text = requirement;
+            condition.fontSize = fontSize;
+            condition.fontStyle = FontStyle.Normal;
+            condition.color = interactable ? new Color(.72f, .81f, .88f, 1f) : new Color(.91f, .63f, .63f, 1f);
+            condition.alignment = TextAnchor.MiddleRight;
+            condition.horizontalOverflow = HorizontalWrapMode.Wrap;
+            condition.verticalOverflow = VerticalWrapMode.Truncate;
+            condition.supportRichText = false;
+            condition.raycastTarget = false;
+            SetRect(condition.rectTransform,
+                hasBadge ? new Vector2(.63f,.05f) : new Vector2(.63f,.08f),
+                hasBadge ? new Vector2(.965f,.62f) : new Vector2(.965f,.92f));
         }
 
-        private void AttachHover(Button button, GameObject previewPanel)
+        private void AttachHover(Button button, string preview)
         {
-            CanvasGroup group = previewPanel.GetComponent<CanvasGroup>();
+            if (string.IsNullOrEmpty(preview)) return;
             EventTrigger trigger = button.GetComponent<EventTrigger>();
             if (trigger == null) trigger = button.gameObject.AddComponent<EventTrigger>();
             trigger.triggers = new List<EventTrigger.Entry>();
 
             EventTrigger.Entry enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-            enter.callback.AddListener(_ => { if (group != null) group.alpha = 1f; });
+            enter.callback.AddListener(_ => ShowChoicePreview(button, preview));
             trigger.triggers.Add(enter);
             EventTrigger.Entry exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
-            exit.callback.AddListener(_ => { if (group != null) group.alpha = 0f; });
+            exit.callback.AddListener(_ => HideChoicePreview());
             trigger.triggers.Add(exit);
+        }
+
+        private void ShowChoicePreview(Button button, string preview)
+        {
+            if (button == null || string.IsNullOrEmpty(preview) || choicePreviewPopup == null || choicePreviewRect == null || canvas == null)
+                return;
+
+            RectTransform buttonRect = button.transform as RectTransform;
+            RectTransform canvasRect = canvas.transform as RectTransform;
+            if (buttonRect == null || canvasRect == null) return;
+
+            Canvas.ForceUpdateCanvases();
+            Vector3[] corners = new Vector3[4];
+            buttonRect.GetWorldCorners(corners);
+            Vector3 leftCenterWorld = (corners[0] + corners[1]) * .5f;
+            Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(canvas.worldCamera, leftCenterWorld);
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screenPoint, canvas.worldCamera, out Vector2 localPoint))
+                return;
+
+            choicePreviewText.text = preview;
+            choicePreviewRect.sizeDelta = new Vector2(buttonRect.rect.width, buttonRect.rect.height);
+            choicePreviewRect.anchoredPosition = localPoint + new Vector2(-PreviewGap, 0f);
+            choicePreviewPopup.SetActive(true);
+            choicePreviewGroup.alpha = 1f;
+            choicePreviewPopup.transform.SetAsLastSibling();
+        }
+
+        private void HideChoicePreview()
+        {
+            if (choicePreviewGroup != null) choicePreviewGroup.alpha = 0f;
+            if (choicePreviewPopup != null) choicePreviewPopup.SetActive(false);
         }
 
         private static void CreateQuestChip(Button button, Text main, QuestBadge badge)
