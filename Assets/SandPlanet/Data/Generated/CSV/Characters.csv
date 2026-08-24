@@ -1,7 +1,7 @@
 ﻿CharacterID,Name,PortraitKey,DefaultLocationID,RoleCode,Active,WriterNote
 CHA_SAM,샘,sam,LOC_01_SETTLEMENT,LEADER,TRUE,공동체 총책임자.
-CHA_JINA,지나,jina,LOC_01_SETTLEMENT,LIVING_MANAGER,TRUE,생활 관리자.
+CHA_JINA,지나,jina,LOC_01_SETTLEMENT,LIVING_MANAGER,TRUE,"생활 관리자. 제이의 절친이 아니라 항해 중 일이 꼬일 때 의지하던 연상의 실무자/큰언니 같은 인물. 지구 출항→불시착 약 3개월이므로, 제이와의 과거 친밀감은 오랜 우정보다 짧은 항해 기간의 업무 신뢰에 기반한다."
 CHA_FAYE,페이,faye,LOC_02_SHIP,TECHNICIAN,TRUE,기술자.
-CHA_BENJAMIN,벤자민,benjamin,LOC_02_SHIP,TECHNICIAN,TRUE,기술자.
+CHA_BENJAMIN,벤자민,benjamin,LOC_02_SHIP,TECHNICIAN,TRUE,기술자. 불시착 당시 약혼자를 잃었다. 배우자와 자녀는 없다. 묘지 아크의 핵심 상실 대상은 약혼자 한 사람.
 CHA_BORICHI,보리치,borichi,LOC_04_OASIS,METEOROLOGIST,TRUE,기상학자.
-CHA_DIYA,디야,diya,LOC_01_SETTLEMENT,URBAN_RESEARCHER,TRUE,도시/공동체 연구자.
+CHA_DIYA,디야,diya,LOC_01_SETTLEMENT,URBAN_RESEARCHER,TRUE,"20대 도시/공동체 연구자. 망가진 지구에서 태어나 기성세대가 남긴 실패에 냉소와 불만이 크다. 반대로 자신보다 어린 아이들이 그 체념을 물려받지 않고 잘 지내는 것을 특히 좋아한다. 미라 실종 사건은 모래폭풍이 발자국을 지워 행방을 놓친 사건이며, 제이가 수색한다. 모래지옥/싱크홀에 빨려 들어가는 설정은 사용하지 않는다."
