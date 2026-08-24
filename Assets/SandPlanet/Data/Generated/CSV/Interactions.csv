@@ -1,5 +1,5 @@
 ﻿FlowID,NodeID,ChoiceID,TargetID,EntryText,QuestID,QuestStepID,QuestRole,QuestAction,QuestActionStepID,PresentationType,Speaker,BodyText,ChoiceText,NextNodeID,TimeCost,WillDelta,PersonalXpDelta,SocialXpDelta,TechnicalXpDelta,Affinity1CharacterID,Affinity1Delta,Affinity2CharacterID,Affinity2Delta,State1ID,State1Change,State2ID,State2Change,EmitEventID,ResultTextOverride,EntryMode,OpenDay,CloseDay,AllowedTimeSlots,RepeatRule,Priority,ShowConditionLogic,ShowCond1Type,ShowCond1Key,ShowCond1Operator,ShowCond1Value,ShowCond2Type,ShowCond2Key,ShowCond2Operator,ShowCond2Value,SoftStat,SoftRequirement,HardConditionLogic,HardCond1Type,HardCond1Key,HardCond1Operator,HardCond1Value,HardCond2Type,HardCond2Key,HardCond2Operator,HardCond2Value,Active,WriterNote
-FLOW_OFFER_CHAR_BENJAMIN,N01,,CHA_BENJAMIN,묘지 쪽을 자꾸 바라보는 이유를 묻는다,QST_CHAR_BENJAMIN,QSTEP_CHAR_BENJAMIN_01_NAMES,OFFER,ACTIVATE_QUEST,,DIALOGUE,CHA_BENJAMIN,"벤자민은 대답 대신 묘지 쪽을 본다. 잠시 뒤, “네가 깨어난 날에 이런 얘기까지 해야 하나 싶네.”라고 낮게 말한다.",그래도 네가 원할 때 같이 가자.,,1,0,0,0,0,,,,,,,,,,,MENU_OPTION,1,6,MORNING|AFTERNOON|EVENING,ONCE,170,AND,STATE,STA_W1_MET_BENJAMIN,EQ,TRUE,,,,,NONE,0,AND,,,,,,,,,TRUE,W1 캐릭터 퀘스트 OFFER. 해당 인물과 Main 재회 후 노출.
+FLOW_OFFER_CHAR_BENJAMIN,N01,,CHA_BENJAMIN,묘지 쪽을 자꾸 바라보는 이유를 묻는다,QST_CHAR_BENJAMIN,QSTEP_CHAR_BENJAMIN_01_NAMES,OFFER,ACTIVATE_QUEST,,DIALOGUE,CHA_BENJAMIN,벤자민은 말을 하다 말고 묘지 쪽을 본다. 잠깐 뒤 낮게 말한다. “나중에 시간 되면 같이 가줄래?”,지금 가자.,,0,0,0,0,0,,,,,,,,,,,MENU_OPTION,1,6,MORNING|AFTERNOON|EVENING,ONCE,170,AND,STATE,STA_W1_MET_BENJAMIN,EQ,TRUE,,,,,NONE,0,AND,,,,,,,,,TRUE,D1 Narrative v1.8: 묘지 Character Quest의 OFFER는 초대만 담당. 실제 시간/관계 결과는 진행 장면에서 처리.
 FLOW_OFFER_CHAR_SAM,N01,,CHA_SAM,요즘 일을 어떻게 감당하는지 묻는다,QST_CHAR_SAM,QSTEP_CHAR_SAM_01_BURDEN,OFFER,ACTIVATE_QUEST,,DIALOGUE,CHA_SAM,"샘은 괜찮다고 대답하지만, 책상에는 처리하지 못한 요청들이 계속 쌓이고 있다.",내가 조금 도울게.,,1,0,0,0,0,,,,,,,,,,,MENU_OPTION,2,6,MORNING|AFTERNOON|EVENING,ONCE,170,AND,STATE,STA_W1_MET_SAM,EQ,TRUE,,,,,NONE,0,AND,,,,,,,,,TRUE,W1 캐릭터 퀘스트 OFFER. 해당 인물과 Main 재회 후 노출.
 FLOW_OFFER_CHAR_FAYE,N01,,CHA_FAYE,수송선 상태를 자세히 물어본다,QST_CHAR_FAYE,QSTEP_CHAR_FAYE_01_SHIP,OFFER,ACTIVATE_QUEST,,DIALOGUE,CHA_FAYE,페이는 수송선이 '고장 난 배'라는 말보다 훨씬 복잡한 상태라고 설명한다.,직접 같이 보자.,,1,0,0,0,0,,,,,,,,,,,MENU_OPTION,2,6,MORNING|AFTERNOON|EVENING,ONCE,170,AND,STATE,STA_W1_MET_FAYE,EQ,TRUE,,,,,NONE,0,AND,,,,,,,,,TRUE,W1 캐릭터 퀘스트 OFFER. 해당 인물과 Main 재회 후 노출.
 FLOW_OFFER_CHAR_JINA,N01,,CHA_JINA,배급 일을 도울 일이 있는지 묻는다,QST_CHAR_JINA,QSTEP_CHAR_JINA_01_RATIONS,OFFER,ACTIVATE_QUEST,,DIALOGUE,CHA_JINA,"지나는 사람 수만 세면 끝나는 일이 아니라며, 오늘 배급표를 제이에게 건넨다.",배급 기준부터 배워보자.,,1,0,0,0,0,,,,,,,,,,,MENU_OPTION,2,6,MORNING|AFTERNOON|EVENING,ONCE,170,AND,STATE,STA_W1_MET_JINA,EQ,TRUE,,,,,NONE,0,AND,,,,,,,,,TRUE,W1 캐릭터 퀘스트 OFFER. 해당 인물과 Main 재회 후 노출.
@@ -31,8 +31,28 @@ FLOW_W1_DISCLOSURE,N05,,CHA_SAM,Day7 — 공개 범위를 결정한다,QST_W1_MA
 FLOW_W1_DISCLOSURE,N06,,CHA_SAM,Day7 — 공개 범위를 결정한다,QST_W1_MAIN_03_DISCLOSURE,QSTEP_W1_MAIN_03_DISCLOSURE_01,PROGRESS,,,DIALOGUE,CHA_BORICHI,“확실하지 않은 부분까지 확실한 것처럼 말하진 말자. 하지만 위험 신호를 보고도 늦게 알리는 건… 다시 하고 싶지 않아.” 보리치는 더 설명하지 않는다.,결정한다.,N07,,0,0,0,0,,,,,,,,,,,DIRECT_CLICK,7,7,MORNING|AFTERNOON|EVENING,ONCE,200,,,,,,,,,,NONE,0,,,,,,,,,,TRUE,보리치의 추가 사망 회피 동기를 암시.
 FLOW_W1_DISCLOSURE,N07,,CHA_SAM,Day7 — 공개 범위를 결정한다,QST_W1_MAIN_03_DISCLOSURE,QSTEP_W1_MAIN_03_DISCLOSURE_01,PROGRESS,,,NARRATION,NARRATOR,"제이는 지난 며칠 동안 확인한 위험과, 그 사실을 알게 될 사람들의 얼굴을 함께 떠올린다.",모두에게 알린다,P01,12,0,0,2,0,,,,,,,,,,,DIRECT_CLICK,7,7,MORNING|AFTERNOON|EVENING,ONCE,200,,,,,,,,,,NONE,0,,,,,,,,,,TRUE,전면 공개. 긴 설명·질문·혼란 관리까지 하루 대부분을 사용.
 FLOW_W1_DISCLOSURE,N07,,CHA_SAM,Day7 — 공개 범위를 결정한다,QST_W1_MAIN_03_DISCLOSURE,QSTEP_W1_MAIN_03_DISCLOSURE_01,PROGRESS,,,NARRATION,NARRATOR,"제이는 지난 며칠 동안 확인한 위험과, 그 사실을 알게 될 사람들의 얼굴을 함께 떠올린다.",핵심 인물에게만 알린다,L01,6,0,0,0,1,,,,,,,,,,,DIRECT_CLICK,7,7,MORNING|AFTERNOON|EVENING,ONCE,200,,,,,,,,,,NONE,0,,,,,,,,,,TRUE,제한 공개. 즉시 혼란은 줄지만 정보·작업 부담이 소수에게 집중.
-FLOW_W1_BEN_NAMES,N01,CHO_W1_BEN_NAMES,CHA_BENJAMIN,묘지를 함께 걷자고 말한다,QST_CHAR_BENJAMIN,QSTEP_CHAR_BENJAMIN_01_NAMES,PROGRESS,,,NARRATION,NARRATOR,벤자민은 묘지 안쪽으로 천천히 걷는다. 제이는 그가 유난히 오래 머무는 두 개의 묘비를 발견한다.,두 사람은 누구야?,N02,3,0,0,1,0,,,,,,,,,,,MENU_OPTION,1,6,MORNING|AFTERNOON|EVENING,ONCE,90,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,Day1부터 진행 가능. 한 번의 추모로 상실을 해결하지 않는다.
-FLOW_W1_BEN_NAMES,N02,,CHA_BENJAMIN,묘지를 함께 걷자고 말한다,QST_CHAR_BENJAMIN,QSTEP_CHAR_BENJAMIN_01_NAMES,PROGRESS,,,DIALOGUE,CHA_BENJAMIN,벤자민은 한참 뒤에야 이름을 말한다. “내 아내와 아이야. 착륙할 때 둘 다 죽었어.” 그는 제이를 보지 않은 채 묘비의 모래만 털어낸다.,말없이 옆에 남는다.,,,,,,,CHA_BENJAMIN,1,,,,,,,EVT_W1_BEN_NAMES_DONE,,MENU_OPTION,1,6,MORNING|AFTERNOON|EVENING,ONCE,90,AND,,,,,,,,,,,,,,,,,,,,TRUE,
+FLOW_W1_BEN_NAMES,N01,CHO_W1_BEN_NAMES_WALK,CHA_BENJAMIN,묘지에 같이 간다,QST_CHAR_BENJAMIN,QSTEP_CHAR_BENJAMIN_01_NAMES,PROGRESS,,,NARRATION,NARRATOR,"묘지는 정착지에서 멀지 않았다.
+
+정리된 돌무더기마다 이름이 하나씩 적혀 있었다.
+
+제이 - 이렇게 많았어?
+
+벤자민 - 첫날에 많이 죽었지.
+
+그는 두 개의 표식 앞에서 멈췄다.
+
+벤자민 - 여긴 내 아내. 옆은 내 아이.",잠시 함께 걷는다.,A01,2,0,0,0,0,CHA_BENJAMIN,1,,,,,,,EVT_W1_BEN_NAMES_DONE,,MENU_OPTION,1,6,MORNING|AFTERNOON|EVENING,ONCE,90,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,D1 Narrative v1.8: 묘지 선택형 장면. 한 장면에서 호감도는 최대 +1.
+FLOW_W1_BEN_NAMES,N01,CHO_W1_BEN_NAMES_RETURN,CHA_BENJAMIN,묘지에 같이 간다,QST_CHAR_BENJAMIN,QSTEP_CHAR_BENJAMIN_01_NAMES,PROGRESS,,,NARRATION,NARRATOR,"묘지는 정착지에서 멀지 않았다.
+
+정리된 돌무더기마다 이름이 하나씩 적혀 있었다.
+
+제이 - 이렇게 많았어?
+
+벤자민 - 첫날에 많이 죽었지.
+
+그는 두 개의 표식 앞에서 멈췄다.
+
+벤자민 - 여긴 내 아내. 옆은 내 아이.",다음에 다시 와도 되냐고 묻는다.,B01,0,0,0,0,0,CHA_BENJAMIN,1,,,,,,,EVT_W1_BEN_NAMES_DONE,,MENU_OPTION,1,6,MORNING|AFTERNOON|EVENING,ONCE,90,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,D1 Narrative v1.8: 묘지 선택형 장면. 한 장면에서 호감도는 최대 +1.
 FLOW_W1_SAM_BURDEN,N01,CHO_W1_SAM_BURDEN,CHA_SAM,샘의 일을 하루 따라가 본다,QST_CHAR_SAM,QSTEP_CHAR_SAM_01_BURDEN,PROGRESS,,,NARRATION,NARRATOR,제이는 샘과 함께 사람들의 요구와 결정을 처리한다.,샘의 일을 돕는다,,4,0,0,1,0,CHA_SAM,1,,,,,,,EVT_W1_SAM_BURDEN_DONE,,MENU_OPTION,2,6,MORNING|AFTERNOON|EVENING,ONCE,90,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,
 FLOW_W1_FAYE_SHIP,N01,CHO_W1_FAYE_SHIP,CHA_FAYE,수송선 정비 우선순위를 함께 본다,QST_CHAR_FAYE,QSTEP_CHAR_FAYE_01_SHIP,PROGRESS,,,NARRATION,NARRATOR,페이와 손상 구역을 돌아보며 어떤 부분이 생존과 출항에 중요한지 정리한다.,수송선 우선순위를 정리한다,,3,0,0,0,1,CHA_FAYE,1,,,,,,,EVT_W1_FAYE_SHIP_DONE,,MENU_OPTION,2,6,MORNING|AFTERNOON|EVENING,ONCE,90,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,
 FLOW_W1_JINA_RATIONS,N01,CHO_W1_JINA_RATIONS,CHA_JINA,배급 업무를 돕는다,QST_CHAR_JINA,QSTEP_CHAR_JINA_01_RATIONS,PROGRESS,,,NARRATION,NARRATOR,누구에게 무엇을 먼저 줄지 지나와 함께 결정한다.,배급 업무를 돕는다,,3,0,0,1,0,CHA_JINA,1,,,,,,,EVT_W1_JINA_RATIONS_DONE,,MENU_OPTION,2,6,MORNING|AFTERNOON|EVENING,ONCE,80,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,
@@ -123,3 +143,66 @@ FLOW_W1_DISCLOSURE,L02,,CHA_SAM,Day7 — 공개 범위를 결정한다,QST_W1_MA
 FLOW_W1_DISCLOSURE,L03,,CHA_SAM,Day7 — 공개 범위를 결정한다,QST_W1_MAIN_03_DISCLOSURE,QSTEP_W1_MAIN_03_DISCLOSURE_01,PROGRESS,,,DIALOGUE,CHA_JINA,“배급량을 바꾸면 이유를 묻겠지. 안 바꾸면 준비가 늦고.” 지나는 명단을 접는다. “숨기는 건 공짜가 아니야.”,밖의 분위기를 확인한다.,L04,,0,0,0,0,,,,,,,,,,,DIRECT_CLICK,7,7,MORNING|AFTERNOON|EVENING,ONCE,200,,,,,,,,,,NONE,0,,,,,,,,,,TRUE,
 FLOW_W1_DISCLOSURE,L04,,CHA_SAM,Day7 — 공개 범위를 결정한다,QST_W1_MAIN_03_DISCLOSURE,QSTEP_W1_MAIN_03_DISCLOSURE_01,PROGRESS,,,DIALOGUE,CHA_DIYA,"거주지는 평온해 보인다. 디야는 그 평온을 오래 바라본다. “사람들은 아직 모르지만, 우리가 행동을 바꾸면 곧 눈치챌 거야.”",샘과 마지막으로 확인한다.,L05,,0,0,0,0,,,,,,,,,,,DIRECT_CLICK,7,7,MORNING|AFTERNOON|EVENING,ONCE,200,,,,,,,,,,NONE,0,,,,,,,,,,TRUE,
 FLOW_W1_DISCLOSURE,L05,,CHA_SAM,Day7 — 공개 범위를 결정한다,QST_W1_MAIN_03_DISCLOSURE,QSTEP_W1_MAIN_03_DISCLOSURE_01,PROGRESS,,,DIALOGUE,CHA_SAM,“지금은 이쪽이 덜 흔들리겠지. 대신 우리가 더 많이 짊어져야 해.” 샘은 닫힌 회의실 문을 확인한다.,결정을 확정한다.,,,0,0,0,0,,,,,,,,,EVT_W1_DISCLOSE_LIMITED,오아시스의 위험을 핵심 인물에게만 공유했다.,DIRECT_CLICK,7,7,MORNING|AFTERNOON|EVENING,ONCE,200,,,,,,,,,,NONE,0,,,,,,,,,,TRUE,제한 공개 분기 종료.
+FLOW_W1_BEN_NAMES,N01,CHO_W1_BEN_NAMES_LEAVE,CHA_BENJAMIN,묘지에 같이 간다,QST_CHAR_BENJAMIN,QSTEP_CHAR_BENJAMIN_01_NAMES,PROGRESS,,,NARRATION,NARRATOR,"묘지는 정착지에서 멀지 않았다.
+
+정리된 돌무더기마다 이름이 하나씩 적혀 있었다.
+
+제이 - 이렇게 많았어?
+
+벤자민 - 첫날에 많이 죽었지.
+
+그는 두 개의 표식 앞에서 멈췄다.
+
+벤자민 - 여긴 내 아내. 옆은 내 아이.",이제 돌아가자고 말한다.,C01,0,0,0,0,0,,,,,,,,,EVT_W1_BEN_NAMES_DONE,,MENU_OPTION,1,6,MORNING|AFTERNOON|EVENING,ONCE,90,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,D1 Narrative v1.8: 묘지 선택형 장면. 한 장면에서 호감도는 최대 +1.
+FLOW_W1_BEN_NAMES,A01,,CHA_BENJAMIN,묘지에 같이 간다,QST_CHAR_BENJAMIN,QSTEP_CHAR_BENJAMIN_01_NAMES,PROGRESS,,,NARRATION,NARRATOR,"제이는 이름을 하나씩 읽었다.
+
+벤자민은 가족 이야기를 길게 하지 않았다. 대신 아이가 매운 음식을 못 먹었다는 것, 아내가 출항 전날까지 짐을 다시 쌌다는 것 같은 얘기만 했다.
+
+돌아갈 때가 되자 벤자민이 말했다.
+
+벤자민 - 죽은 사람 얘기는 이런 게 낫더라. 어떻게 죽었는지보다, 어떻게 살았는지.
+
+묘지는 그대로 남아 있었다. 바람이 불 때마다 표식 사이의 천 조각들이 서로 다른 방향으로 흔들렸다.",계속,,,,,,,,,,,,,,,,,MENU_OPTION,1,6,MORNING|AFTERNOON|EVENING,ONCE,90,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,D1 Narrative v1.8: 묘지 선택형 장면. 한 장면에서 호감도는 최대 +1.
+FLOW_W1_BEN_NAMES,B01,,CHA_BENJAMIN,묘지에 같이 간다,QST_CHAR_BENJAMIN,QSTEP_CHAR_BENJAMIN_01_NAMES,PROGRESS,,,NARRATION,NARRATOR,"제이 - 다음에 다시 와도 될까?
+
+벤자민 - 네가 오고 싶으면.
+
+잠깐 뒤, 그가 덧붙였다.
+
+벤자민 - 대신 불쌍한 표정은 하고 오지 마.
+
+묘지는 그대로 남아 있었다. 바람이 불 때마다 표식 사이의 천 조각들이 서로 다른 방향으로 흔들렸다.",계속,,,,,,,,,,,,,,,,,MENU_OPTION,1,6,MORNING|AFTERNOON|EVENING,ONCE,90,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,D1 Narrative v1.8: 묘지 선택형 장면. 한 장면에서 호감도는 최대 +1.
+FLOW_W1_BEN_NAMES,C01,,CHA_BENJAMIN,묘지에 같이 간다,QST_CHAR_BENJAMIN,QSTEP_CHAR_BENJAMIN_01_NAMES,PROGRESS,,,NARRATION,NARRATOR,"제이는 이름 두 개를 기억해 두고 묘지를 떠났다.
+
+묘지는 그대로 남아 있었다. 바람이 불 때마다 표식 사이의 천 조각들이 서로 다른 방향으로 흔들렸다.",계속,,,,,,,,,,,,,,,,,MENU_OPTION,1,6,MORNING|AFTERNOON|EVENING,ONCE,90,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,D1 Narrative v1.8: 묘지 선택형 장면. 한 장면에서 호감도는 최대 +1.
+FLOW_W1_SHIP_OVERVIEW,N01,CHO_W1_SHIP_OVERVIEW_WALK,OBJ_02_SHIP_CONSOLE,수송선의 현재 상태를 처음부터 확인한다,,,NONE,,,NARRATION,NARRATOR,"수송선은 멀리서 보면 아직 배였다.
+
+가까이 가면 생각이 조금 달라진다. 외벽은 군데군데 덧대어져 있고, 원래 문이었을 곳엔 철판이 박혀 있다. 모래는 착륙 장치 절반을 삼켰다.
+
+안쪽에서는 오래된 환풍기 소리가 일정하지 않은 박자로 끊긴다.",배 안을 한 바퀴 돌아본다.,A01,1,0,0,0,0,,,,,STA_W1_SHIP_OVERVIEW_SEEN,SET TRUE,,,,수송선의 기본 상태를 확인했다.,MENU_OPTION,1,1,MORNING|AFTERNOON|EVENING,ONCE,160,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,D1 Narrative v1.8: 비인물 소설식 상호작용. 수송선 기본 상태와 기술 잠금 선택 튜토리얼.
+FLOW_W1_SHIP_OVERVIEW,N01,CHO_W1_SHIP_OVERVIEW_DETAIL,OBJ_02_SHIP_CONSOLE,수송선의 현재 상태를 처음부터 확인한다,,,NONE,,,NARRATION,NARRATOR,"수송선은 멀리서 보면 아직 배였다.
+
+가까이 가면 생각이 조금 달라진다. 외벽은 군데군데 덧대어져 있고, 원래 문이었을 곳엔 철판이 박혀 있다. 모래는 착륙 장치 절반을 삼켰다.
+
+안쪽에서는 오래된 환풍기 소리가 일정하지 않은 박자로 끊긴다.",손상 기록까지 확인한다.,B01,1,0,0,0,1,,,,,STA_W1_SHIP_OVERVIEW_SEEN,SET TRUE,STA_W1_SHIP_DETAIL_SEEN,SET TRUE,,수송선의 손상 기록까지 확인했다.,MENU_OPTION,1,1,MORNING|AFTERNOON|EVENING,ONCE,160,AND,,,,,,,,,NONE,0,AND,STAT_LEVEL,TECHNICAL,GE,3,,,,,TRUE,D1 Narrative v1.8: 비인물 소설식 상호작용. 수송선 기본 상태와 기술 잠금 선택 튜토리얼.
+FLOW_W1_SHIP_OVERVIEW,N01,CHO_W1_SHIP_OVERVIEW_LEAVE,OBJ_02_SHIP_CONSOLE,수송선의 현재 상태를 처음부터 확인한다,,,NONE,,,NARRATION,NARRATOR,"수송선은 멀리서 보면 아직 배였다.
+
+가까이 가면 생각이 조금 달라진다. 외벽은 군데군데 덧대어져 있고, 원래 문이었을 곳엔 철판이 박혀 있다. 모래는 착륙 장치 절반을 삼켰다.
+
+안쪽에서는 오래된 환풍기 소리가 일정하지 않은 박자로 끊긴다.",오늘은 여기까지만 본다.,C01,0,0,0,0,0,,,,,STA_W1_SHIP_OVERVIEW_SEEN,SET TRUE,,,,수송선의 외관만 확인하고 돌아섰다.,MENU_OPTION,1,1,MORNING|AFTERNOON|EVENING,ONCE,160,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,D1 Narrative v1.8: 비인물 소설식 상호작용. 수송선 기본 상태와 기술 잠금 선택 튜토리얼.
+FLOW_W1_SHIP_OVERVIEW,A01,,OBJ_02_SHIP_CONSOLE,수송선의 현재 상태를 처음부터 확인한다,,,NONE,,,NARRATION,NARRATOR,"함교, 엔진실, 연구구역, 거주구역.
+
+멀쩡한 곳은 없었지만 완전히 죽은 곳도 드물었다.
+
+고칠 수는 있다.
+문제는 무엇부터 고칠지다.
+
+수송선은 조용히 모래 위에 누워 있었다.",계속,,,,,,,,,,,,,,,,,MENU_OPTION,1,1,MORNING|AFTERNOON|EVENING,ONCE,160,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,D1 Narrative v1.8: 비인물 소설식 상호작용. 수송선 기본 상태와 기술 잠금 선택 튜토리얼.
+FLOW_W1_SHIP_OVERVIEW,B01,,OBJ_02_SHIP_CONSOLE,수송선의 현재 상태를 처음부터 확인한다,,,NONE,,,NARRATION,NARRATOR,"제이는 비상 패널을 몇 번 두드려 손상 기록을 띄웠다.
+
+숫자는 좋지 않았다. 그래도 회로가 살아 있다는 건, 누군가 십 년 동안 이 배를 포기하지 않았다는 뜻이기도 했다.
+
+수송선은 조용히 모래 위에 누워 있었다.",계속,,,,,,,,,,,,,,,,,MENU_OPTION,1,1,MORNING|AFTERNOON|EVENING,ONCE,160,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,D1 Narrative v1.8: 비인물 소설식 상호작용. 수송선 기본 상태와 기술 잠금 선택 튜토리얼.
+FLOW_W1_SHIP_OVERVIEW,C01,,OBJ_02_SHIP_CONSOLE,수송선의 현재 상태를 처음부터 확인한다,,,NONE,,,NARRATION,NARRATOR,"배를 오래 볼수록 해야 할 일이 늘어난다. 오늘은 여기까지만 보기로 한다.
+
+수송선은 조용히 모래 위에 누워 있었다.",계속,,,,,,,,,,,,,,,,,MENU_OPTION,1,1,MORNING|AFTERNOON|EVENING,ONCE,160,AND,,,,,,,,,NONE,0,AND,,,,,,,,,TRUE,D1 Narrative v1.8: 비인물 소설식 상호작용. 수송선 기본 상태와 기술 잠금 선택 튜토리얼.

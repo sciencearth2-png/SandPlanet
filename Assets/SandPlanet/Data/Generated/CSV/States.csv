@@ -41,3 +41,5 @@ STA_W1_BEN_FAMILY_KNOWN,BOOL,FALSE,INFO,벤자민의 아내와 아이가 불시�
 STA_W1_DISCLOSURE_DEBATE_OPEN,BOOL,FALSE,SYSTEM,오아시스 조사 보고 후 Day7 공개 결정을 준비하는 구간 개방,샘의 전망 대화와 공개/제한 대비 행동의 노출 조건.
 STA_W1_LIMITED_WORK_PREPARED,BOOL,FALSE,WORLD,제한 공개 시 핵심 실무진의 역할 분담을 미리 정리함,Day7 제한 공개 시간 부담 및 Week2 후속 반응 완화 훅.
 STA_W1_OASIS_LIVED_CHANGE_KNOWN,BOOL,FALSE,INFO,주민이 체감한 오아시스·생활 변화까지 확인함,오아시스 조사 Social 경로의 추가 정보. 별도 Clue 시스템이 아닌 일반 정보 State.
+STA_W1_SHIP_OVERVIEW_SEEN,BOOL,FALSE,INFO,수송선의 기본 상태를 직접 확인함,D1 Narrative v1.8 수송선 첫 점검.
+STA_W1_SHIP_DETAIL_SEEN,BOOL,FALSE,INFO,수송선 손상 기록까지 확인함,D1 Narrative v1.8 기술 선택 결과.
