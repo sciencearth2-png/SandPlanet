@@ -242,7 +242,7 @@ namespace SandPlanet.EditorTools
             HashSet<string> quests = UniqueIds(t["Quests"], "QuestID", "Quest", errors);
             HashSet<string> steps = UniqueIds(t["QuestSteps"], "QuestStepID", "QuestStep", errors);
             HashSet<string> states = UniqueIds(t["States"], "StateID", "State", errors);
-            HashSet<string> events = new HashSet<string>(t["Events"].Select(r => G(r, "EventID")).Where(x => x.Length > 0), StringComparer.Ordinal);
+            HashSet<string> events = new HashSet<string>(t["Events"].Where(IsActive).Select(r => G(r, "EventID")).Where(x => x.Length > 0), StringComparer.Ordinal);
             UniqueIds(t["EventTriggers"], "TriggerID", "Trigger", errors);
             UniqueIds(t["NpcSchedules"], "ScheduleID", "Schedule", errors);
 
@@ -256,8 +256,20 @@ namespace SandPlanet.EditorTools
             }
             foreach (Dictionary<string, string> r in t["QuestSteps"])
             {
-                string e = G(r, "ProgressEventID");
-                if (e.Length > 0 && !events.Contains(e)) errors.Add($"QuestStep {G(r, "QuestStepID")}: ProgressEvent 없음 {e}");
+                string id = G(r, "QuestStepID"), q = G(r, "QuestID"), e = G(r, "ProgressEventID");
+                if (e.Length > 0 && !events.Contains(e)) errors.Add($"QuestStep {id}: ProgressEvent 없음 {e}");
+
+                string progress = G(r, "OnProgressEvent").ToUpperInvariant();
+                string next = G(r, "NextStepID");
+                if (progress == "SET_STEP")
+                {
+                    if (next.Length == 0)
+                        errors.Add($"QuestStep {id}: SET_STEP에는 NextStepID가 필요함");
+                    else if (!steps.Contains(next))
+                        errors.Add($"QuestStep {id}: NextStepID 없음 {next}");
+                    else if (!stepOwner.TryGetValue(next, out string nextOwner) || nextOwner != q)
+                        errors.Add($"QuestStep {id}: NextStepID {next}가 Quest {q} 소속이 아님");
+                }
             }
             foreach (Dictionary<string, string> r in t["WorldTargets"])
                 if (!locations.Contains(G(r, "LocationID"))) errors.Add($"WorldTarget {G(r, "WorldTargetID")}: Location 없음");
@@ -268,12 +280,14 @@ namespace SandPlanet.EditorTools
 
             foreach (Dictionary<string, string> r in t["EventTriggers"])
             {
+                if (!IsActive(r)) continue;
                 string id = G(r, "TriggerID"), e = G(r, "EventID"), loc = G(r, "LocationID");
                 if (!events.Contains(e)) errors.Add($"Trigger {id}: Event 없음 {e}");
                 if (loc.Length > 0 && !locations.Contains(loc)) errors.Add($"Trigger {id}: Location 없음 {loc}");
             }
             foreach (Dictionary<string, string> r in t["NpcSchedules"])
             {
+                if (!IsActive(r)) continue;
                 string id = G(r, "ScheduleID"), c = G(r, "CharacterID"), loc = G(r, "LocationID");
                 if (!characters.Contains(c)) errors.Add($"Schedule {id}: Character 없음 {c}");
                 if (!locations.Contains(loc)) errors.Add($"Schedule {id}: Location 없음 {loc}");
@@ -285,6 +299,7 @@ namespace SandPlanet.EditorTools
         {
             foreach (Dictionary<string, string> q in quests)
             {
+                if (!IsActive(q)) continue;
                 if (!string.Equals(G(q, "QuestType"), "CHARACTER", StringComparison.OrdinalIgnoreCase)) continue;
                 string id = G(q, "QuestID");
                 if (!id.StartsWith("QST_CHAR_", StringComparison.Ordinal))
@@ -297,11 +312,12 @@ namespace SandPlanet.EditorTools
             HashSet<string> quests, HashSet<string> steps, Dictionary<string, string> stepOwner,
             HashSet<string> states, HashSet<string> events, List<string> errors)
         {
-            Dictionary<string, HashSet<string>> nodes = rows.GroupBy(r => G(r, "FlowID"))
+            List<Dictionary<string, string>> activeRows = rows.Where(IsActive).ToList();
+            Dictionary<string, HashSet<string>> nodes = activeRows.GroupBy(r => G(r, "FlowID"))
                 .ToDictionary(g => g.Key, g => new HashSet<string>(g.Select(r => G(r, "NodeID")).Where(x => x.Length > 0), StringComparer.Ordinal), StringComparer.Ordinal);
             HashSet<string> rowKeys = new HashSet<string>(StringComparer.Ordinal);
 
-            foreach (IGrouping<string, Dictionary<string, string>> group in rows.GroupBy(r => G(r, "FlowID")))
+            foreach (IGrouping<string, Dictionary<string, string>> group in activeRows.GroupBy(r => G(r, "FlowID")))
             {
                 Dictionary<string, string> first = group.First();
                 string flow = group.Key;
@@ -315,7 +331,7 @@ namespace SandPlanet.EditorTools
                     errors.Add($"Flow {flow}: OFFER 플로우에는 ACTIVATE_QUEST 결과가 최소 1개 필요함");
             }
 
-            foreach (Dictionary<string, string> r in rows)
+            foreach (Dictionary<string, string> r in activeRows)
             {
                 string flow = G(r, "FlowID"), node = G(r, "NodeID"), choice = G(r, "ChoiceID"), target = G(r, "TargetID"), q = G(r, "QuestID"), step = G(r, "QuestStepID");
                 if (flow.Length == 0 || node.Length == 0) { errors.Add("InteractionFlow: FlowID/NodeID 빈 값"); continue; }
@@ -346,10 +362,9 @@ namespace SandPlanet.EditorTools
                     }
                 }
 
-                if (choice.Length > 0 && SandPlanetCsv04.GetInt(r, "TimeCost") < 1)
-                    errors.Add($"Flow {flow}/{choice}: 플레이어 선택 TimeCost는 최소 1시간");
-                if (action == "ACTIVATE_QUEST" && SandPlanetCsv04.GetInt(r, "TimeCost") < 1)
-                    errors.Add($"Flow {flow}/{node}: Quest 수락 상호작용은 최소 1시간");
+                int timeCost = SandPlanetCsv04.GetInt(r, "TimeCost");
+                if (timeCost < 0)
+                    errors.Add($"Flow {flow}/{node}: TimeCost는 0 이상이어야 함 ({timeCost})");
             }
         }
 
@@ -357,10 +372,11 @@ namespace SandPlanet.EditorTools
             List<Dictionary<string, string>> rows, HashSet<string> quests, HashSet<string> steps,
             Dictionary<string, string> stepOwner, HashSet<string> states, HashSet<string> events, List<string> errors)
         {
-            Dictionary<string, HashSet<string>> nodes = rows.GroupBy(r => G(r, "EventID"))
+            List<Dictionary<string, string>> activeRows = rows.Where(IsActive).ToList();
+            Dictionary<string, HashSet<string>> nodes = activeRows.GroupBy(r => G(r, "EventID"))
                 .ToDictionary(g => g.Key, g => new HashSet<string>(g.Select(r => G(r, "NodeID")).Where(x => x.Length > 0), StringComparer.Ordinal), StringComparer.Ordinal);
             HashSet<string> rowKeys = new HashSet<string>(StringComparer.Ordinal);
-            foreach (Dictionary<string, string> r in rows)
+            foreach (Dictionary<string, string> r in activeRows)
             {
                 string e = G(r, "EventID"), node = G(r, "NodeID"), choice = G(r, "ChoiceID");
                 string key = e + "#" + node + "#" + choice;
@@ -379,6 +395,10 @@ namespace SandPlanet.EditorTools
                     if (!steps.Contains(step)) errors.Add($"Event {e}/{node}: QuestStep 없음 {step}");
                     else if (!stepOwner.TryGetValue(step, out string owner) || owner != q) errors.Add($"Event {e}/{node}: QuestStep {step}가 Quest {q} 소속이 아님");
                 }
+
+                int timeCost = SandPlanetCsv04.GetInt(r, "TimeDelta");
+                if (timeCost < 0)
+                    errors.Add($"Event {e}/{node}: TimeDelta는 0 이상이어야 함 ({timeCost})");
             }
         }
 
@@ -408,6 +428,13 @@ namespace SandPlanet.EditorTools
                 if (!result.Add(id)) errors.Add(label + " ID 중복: " + id);
             }
             return result;
+        }
+
+        private static bool IsActive(Dictionary<string, string> r)
+        {
+            string value = G(r, "Active").Trim();
+            if (value.Length == 0) return true;
+            return !string.Equals(value, "FALSE", StringComparison.OrdinalIgnoreCase) && value != "0";
         }
 
         private static string G(Dictionary<string, string> r, string key) => SandPlanetCsv04.Get(r, key, string.Empty);
