@@ -7,7 +7,9 @@ workbook_path: Assets/SandPlanet/Data/Design/SandPlanet_ContentDesign.xlsx
 artifact_filename: SandPlanet_ContentDesign_v3.1_CANON.xlsx
 artifact_size_bytes: 438018
 artifact_sha256: ba6d66c1b0346251b3b8a691eaea62d817a2c5fcdbaff0843b1ab8bb1bd32369
-binary_status: pending-local-git-add
+git_blob_sha: 69e299cf195f2a19122525d5def068921e2e2ff0
+binary_status: registered-in-git
+master_w1_repair_status: v3.6-artifact-ready-local-apply-pending
 
 verification_order:
   - ContentDesign
@@ -35,5 +37,6 @@ canon:
 
 notes:
   - Existing ship Integrity, Repair Profile, FacilityTransition, W3 boss and Ending reverse-design calculations are preserved rather than redesigned.
-  - Master currently does not yet contain the full W1 D3-D7 Standard Repair loop; migrate it from ContentDesign before further narrative completion/runtime balance conclusions.
+  - W1 D3-D7 Standard Repair has been migrated into the v3.6 Master artifact. Apply it to Assets/SandPlanet/Data/Authoring/SandPlanet_Master.xlsx, export CSV, and run Validator before committing Master/Generated CSV.
+  - W2 D8-D14 Standard Repair 7-slot migration is still pending before W2 runtime playtest/balance conclusions.
   - Unity TimeDelta is integer-hours; historical 1.5h design values require conversion when migrating to Master.
