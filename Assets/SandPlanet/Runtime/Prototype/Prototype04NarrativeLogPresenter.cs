@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using SandPlanet.Prototype.DataDriven;
@@ -9,14 +10,16 @@ using UnityEngine.UI;
 namespace SandPlanet.Prototype
 {
     /// <summary>
-    /// Consolidated right-side narrative presenter for the readable-log vertical slice.
-    /// Gameplay authority remains in Prototype04FlowRuntime; this component only owns presentation.
+    /// Right-side readable narrative log. FlowRuntime remains the gameplay authority;
+    /// this class owns only presentation, scroll, hover preview and typewriter pacing.
     /// </summary>
     public sealed class Prototype04NarrativeLogPresenter : MonoBehaviour
     {
         private static readonly Vector2 RightMin = new Vector2(.739f, .018f);
         private static readonly Vector2 RightMax = new Vector2(.995f, .837f);
-        private const string HoverHint = "선택지에 마우스를 올리면 즉시 바뀌는 결과를 확인할 수 있습니다.";
+        private const float TypeDelay = .021f;
+        private const float CommaDelay = .035f;
+        private const float StopDelay = .075f;
 
         private readonly Dictionary<string, Sprite> portraitCache = new Dictionary<string, Sprite>(StringComparer.Ordinal);
         private readonly List<string> transcript = new List<string>();
@@ -33,15 +36,21 @@ namespace SandPlanet.Prototype
         private Transform modalRoot;
         private Button modalTemplate;
         private ScrollRect narrativeScroll;
-        private GameObject hoverPanel;
-        private Text hoverText;
+        private RectTransform narrativeContent;
+        private GameObject typewriterOverlay;
         private GameObject portraitFrame;
         private Image portraitImage;
         private Text portraitName;
+
         private string interactionSignature = string.Empty;
         private string narrativeSignature = string.Empty;
         private string activeFlowKey = string.Empty;
         private string lastNodeSignature = string.Empty;
+        private Coroutine typewriterRoutine;
+        private string typewriterPrefix = string.Empty;
+        private string typewriterSegment = string.Empty;
+        private string typewriterTarget = string.Empty;
+        private bool typing;
 
         public void Initialize(Prototype04RuntimeFacade runtimeFacade)
         {
@@ -56,7 +65,8 @@ namespace SandPlanet.Prototype
             interactionPanel = interactionRoot != null && interactionRoot.parent != null ? interactionRoot.parent.gameObject : null;
             canvas = runtime.LocationPanel != null ? runtime.LocationPanel.GetComponentInParent<Canvas>() : null;
 
-            if (canvas == null || interactionPanel == null || interactionTemplate == null || modalPanel == null || modalBody == null || modalRoot == null || modalTemplate == null)
+            if (canvas == null || interactionPanel == null || interactionTemplate == null || modalPanel == null ||
+                modalBody == null || modalRoot == null || modalTemplate == null)
             {
                 enabled = false;
                 return;
@@ -71,6 +81,7 @@ namespace SandPlanet.Prototype
         private void OnDestroy()
         {
             if (runtime != null) runtime.Changed -= Refresh;
+            StopTypewriter();
         }
 
         private void ConfigureStaticLayout()
@@ -100,7 +111,7 @@ namespace SandPlanet.Prototype
             SetRect(interactionHeader.rectTransform, new Vector2(.065f, .875f), new Vector2(.935f, .97f));
 
             SetRect(interactionRoot as RectTransform, new Vector2(.06f, .055f), new Vector2(.94f, .865f));
-            ConfigureVerticalRoot(interactionRoot, 10f, TextAnchor.UpperCenter);
+            ConfigureVerticalRoot(interactionRoot, 10f, TextAnchor.UpperCenter, false);
             StyleTemplate(interactionTemplate, 84f, 17, TextAnchor.MiddleLeft);
 
             SetRect(modalPanel.GetComponent<RectTransform>(), RightMin, RightMax);
@@ -122,12 +133,7 @@ namespace SandPlanet.Prototype
             }
 
             CreateNarrativeScroll(font);
-            CreateHoverPanel(font);
-
-            SetRect(modalRoot as RectTransform, new Vector2(.055f, .025f), new Vector2(.945f, .285f));
-            ConfigureVerticalRoot(modalRoot, 7f, TextAnchor.LowerCenter);
             StyleTemplate(modalTemplate, 64f, 16, TextAnchor.MiddleLeft);
-
             interactionTemplate.gameObject.SetActive(false);
             modalTemplate.gameObject.SetActive(false);
         }
@@ -135,20 +141,41 @@ namespace SandPlanet.Prototype
         private void CreateNarrativeScroll(Font font)
         {
             Transform oldParent = modalBody.transform.parent;
-            GameObject scrollObject = new GameObject("UX_NarrativeLogScroll", typeof(RectTransform), typeof(ScrollRect));
+            GameObject scrollObject = new GameObject("UX_NarrativeWholeScroll", typeof(RectTransform), typeof(ScrollRect));
             scrollObject.transform.SetParent(oldParent, false);
-            SetRect(scrollObject.GetComponent<RectTransform>(), new Vector2(.055f, .39f), new Vector2(.945f, .85f));
+            SetRect(scrollObject.GetComponent<RectTransform>(), new Vector2(.045f, .035f), new Vector2(.955f, .85f));
 
             GameObject viewportObject = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
             viewportObject.transform.SetParent(scrollObject.transform, false);
             RectTransform viewport = viewportObject.GetComponent<RectTransform>();
             SetRect(viewport, Vector2.zero, Vector2.one);
             Image viewportImage = viewportObject.GetComponent<Image>();
-            viewportImage.color = new Color(0f, 0f, 0f, .01f);
+            viewportImage.color = new Color(0f, 0f, 0f, .005f);
             viewportImage.raycastTarget = true;
             viewportObject.GetComponent<Mask>().showMaskGraphic = false;
 
-            modalBody.transform.SetParent(viewportObject.transform, false);
+            GameObject contentObject = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+            contentObject.transform.SetParent(viewportObject.transform, false);
+            narrativeContent = contentObject.GetComponent<RectTransform>();
+            narrativeContent.anchorMin = new Vector2(0f, 1f);
+            narrativeContent.anchorMax = new Vector2(1f, 1f);
+            narrativeContent.pivot = new Vector2(.5f, 1f);
+            narrativeContent.anchoredPosition = Vector2.zero;
+            narrativeContent.sizeDelta = Vector2.zero;
+
+            VerticalLayoutGroup contentLayout = contentObject.GetComponent<VerticalLayoutGroup>();
+            contentLayout.spacing = 18f;
+            contentLayout.padding = new RectOffset(6, 6, 4, 12);
+            contentLayout.childAlignment = TextAnchor.UpperCenter;
+            contentLayout.childControlWidth = true;
+            contentLayout.childForceExpandWidth = true;
+            contentLayout.childControlHeight = true;
+            contentLayout.childForceExpandHeight = false;
+            ContentSizeFitter contentFitter = contentObject.GetComponent<ContentSizeFitter>();
+            contentFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            modalBody.transform.SetParent(contentObject.transform, false);
             RectTransform bodyRect = modalBody.rectTransform;
             bodyRect.anchorMin = new Vector2(0f, 1f);
             bodyRect.anchorMax = new Vector2(1f, 1f);
@@ -158,52 +185,49 @@ namespace SandPlanet.Prototype
             modalBody.font = font;
             modalBody.fontSize = 18;
             modalBody.fontStyle = FontStyle.Normal;
-            modalBody.lineSpacing = 1.14f;
+            modalBody.lineSpacing = 1.16f;
             modalBody.color = new Color(.91f, .93f, .95f, 1f);
             modalBody.alignment = TextAnchor.UpperLeft;
             modalBody.horizontalOverflow = HorizontalWrapMode.Wrap;
             modalBody.verticalOverflow = VerticalWrapMode.Overflow;
-            modalBody.supportRichText = true;
+            modalBody.supportRichText = false;
             modalBody.raycastTarget = false;
+            ContentSizeFitter bodyFitter = modalBody.GetComponent<ContentSizeFitter>();
+            if (bodyFitter == null) bodyFitter = modalBody.gameObject.AddComponent<ContentSizeFitter>();
+            bodyFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            bodyFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            ContentSizeFitter fitter = modalBody.GetComponent<ContentSizeFitter>();
-            if (fitter == null) fitter = modalBody.gameObject.AddComponent<ContentSizeFitter>();
-            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            modalRoot.SetParent(contentObject.transform, false);
+            RectTransform rootRect = modalRoot as RectTransform;
+            rootRect.anchorMin = new Vector2(0f, 1f);
+            rootRect.anchorMax = new Vector2(1f, 1f);
+            rootRect.pivot = new Vector2(.5f, 1f);
+            rootRect.anchoredPosition = Vector2.zero;
+            rootRect.sizeDelta = Vector2.zero;
+            ConfigureVerticalRoot(modalRoot, 8f, TextAnchor.UpperCenter, true);
 
             narrativeScroll = scrollObject.GetComponent<ScrollRect>();
             narrativeScroll.viewport = viewport;
-            narrativeScroll.content = bodyRect;
+            narrativeScroll.content = narrativeContent;
             narrativeScroll.horizontal = false;
             narrativeScroll.vertical = true;
             narrativeScroll.inertia = true;
             narrativeScroll.decelerationRate = .12f;
-            narrativeScroll.scrollSensitivity = 24f;
+            narrativeScroll.scrollSensitivity = 28f;
             narrativeScroll.movementType = ScrollRect.MovementType.Clamped;
-        }
 
-        private void CreateHoverPanel(Font font)
-        {
-            hoverPanel = new GameObject("UX_NarrativeChoicePreview", typeof(RectTransform), typeof(Image));
-            hoverPanel.transform.SetParent(modalPanel.transform, false);
-            SetRect(hoverPanel.GetComponent<RectTransform>(), new Vector2(.055f, .295f), new Vector2(.945f, .38f));
-            Image image = hoverPanel.GetComponent<Image>();
-            image.color = new Color(.075f, .095f, .12f, .98f);
-            image.raycastTarget = false;
-
-            GameObject textObject = new GameObject("PreviewText", typeof(RectTransform), typeof(Text));
-            textObject.transform.SetParent(hoverPanel.transform, false);
-            SetRect(textObject.GetComponent<RectTransform>(), new Vector2(.035f, .08f), new Vector2(.965f, .92f));
-            hoverText = textObject.GetComponent<Text>();
-            hoverText.font = font;
-            hoverText.fontSize = 14;
-            hoverText.color = new Color(.80f, .86f, .91f, 1f);
-            hoverText.alignment = TextAnchor.MiddleLeft;
-            hoverText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            hoverText.verticalOverflow = VerticalWrapMode.Truncate;
-            hoverText.supportRichText = true;
-            hoverText.raycastTarget = false;
-            hoverText.text = HoverHint;
+            typewriterOverlay = new GameObject("TypewriterSkipOverlay", typeof(RectTransform), typeof(Image), typeof(EventTrigger));
+            typewriterOverlay.transform.SetParent(viewportObject.transform, false);
+            SetRect(typewriterOverlay.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
+            Image overlayImage = typewriterOverlay.GetComponent<Image>();
+            overlayImage.color = new Color(1f, 1f, 1f, .001f);
+            overlayImage.raycastTarget = true;
+            EventTrigger trigger = typewriterOverlay.GetComponent<EventTrigger>();
+            trigger.triggers = new List<EventTrigger.Entry>();
+            EventTrigger.Entry click = new EventTrigger.Entry { eventID = EventTriggerType.PointerClick };
+            click.callback.AddListener(_ => CompleteTypewriter());
+            trigger.triggers.Add(click);
+            typewriterOverlay.SetActive(false);
         }
 
         private void Refresh()
@@ -220,6 +244,7 @@ namespace SandPlanet.Prototype
                 return;
             }
 
+            StopTypewriter();
             modalPanel.SetActive(false);
             ResetNarrativeState();
             ClearDynamic(modalRoot, modalTemplate);
@@ -290,50 +315,57 @@ namespace SandPlanet.Prototype
             }
 
             EnsureFlowTranscript();
-            AppendCurrentNode(rows);
-
+            bool appended = AppendCurrentNode(rows, out string newSegment);
             string signature = CurrentFlowKey() + "|" + lastNodeSignature + "|" + string.Join("|", rows.Select(r => r.NodeId + ":" + r.ChoiceId + ":" + r.NextNodeId));
-            if (signature == narrativeSignature) return;
+            if (signature == narrativeSignature && !appended) return;
             narrativeSignature = signature;
 
             if (modalTitle != null) modalTitle.text = runtime.CurrentFlowTitle();
-            modalBody.text = string.Join("\n\n", transcript);
             ClearDynamic(modalRoot, modalTemplate);
-            SetHover(HoverHint);
 
             if (rows.Count == 0)
             {
-                CreateModalButton("닫기", true, runtime.CloseSimpleModal, null, null);
-                ScrollToBottom();
-                return;
+                CreateModalButton("닫기", true, runtime.CloseSimpleModal, null, string.Empty);
             }
-
-            foreach (SandPlanetFlowNode04 row in rows)
+            else
             {
-                bool canExecute = runtime.CanExecuteNode(row, out string reason, out _);
-                string label = ChoiceLabel(row, canExecute, reason);
-                SandPlanetFlowNode04 captured = row;
-                CreateModalButton(label, canExecute, () => ExecuteChoice(captured), QuestActionFor(row), PreviewFor(row, canExecute, reason));
+                foreach (SandPlanetFlowNode04 row in rows)
+                {
+                    bool canExecute = runtime.CanExecuteNode(row, out string reason, out _);
+                    SandPlanetFlowNode04 captured = row;
+                    CreateModalButton(ChoiceLabel(row, canExecute, reason), canExecute,
+                        () => ExecuteChoice(captured), QuestActionFor(row), PreviewFor(row, canExecute, reason));
+                }
+
+                if (runtime.HasActiveInteractionFlow && !runtime.FlowCommitted)
+                    CreateModalButton("취소", true, runtime.CancelFlow, null, string.Empty);
             }
 
-            if (runtime.HasActiveInteractionFlow && !runtime.FlowCommitted)
-                CreateModalButton("취소", true, runtime.CancelFlow, null, "아직 선택한 결과를 확정하지 않고 대화를 닫습니다.");
-
-            ScrollToBottom();
+            if (appended)
+            {
+                string prefix = transcript.Count > 1 ? string.Join("\n\n", transcript.Take(transcript.Count - 1)) + "\n\n" : string.Empty;
+                StartTypewriter(prefix, newSegment);
+            }
+            else
+            {
+                StopTypewriter();
+                modalBody.text = string.Join("\n\n", transcript);
+                RevealChoices();
+            }
         }
 
         private void RenderSimpleModal()
         {
-            string signature = "SIMPLE|" + runtime.CurrentFlowTitle() + "|" + runtime.CurrentFlowBody();
+            string body = runtime.CurrentFlowBody() ?? string.Empty;
+            string signature = "SIMPLE|" + runtime.CurrentFlowTitle() + "|" + body;
             if (signature == narrativeSignature) return;
             ResetNarrativeState();
             narrativeSignature = signature;
             if (modalTitle != null) modalTitle.text = runtime.CurrentFlowTitle();
-            if (modalBody != null) modalBody.text = runtime.CurrentFlowBody();
+            transcript.Add(body);
             ClearDynamic(modalRoot, modalTemplate);
-            SetHover(HoverHint);
-            CreateModalButton("닫기", true, runtime.CloseSimpleModal, null, null);
-            ScrollToBottom();
+            CreateModalButton("닫기", true, runtime.CloseSimpleModal, null, string.Empty);
+            StartTypewriter(string.Empty, body);
         }
 
         private void EnsureFlowTranscript()
@@ -344,55 +376,161 @@ namespace SandPlanet.Prototype
             transcript.Clear();
             lastNodeSignature = string.Empty;
             narrativeSignature = string.Empty;
+            StopTypewriter();
         }
 
         private string CurrentFlowKey()
         {
-            if (runtime.HasActiveInteractionFlow && runtime.ActiveInteraction != null)
-                return "I:" + runtime.ActiveInteraction.Id;
-            if (runtime.HasActiveEventFlow)
-                return "E:" + runtime.CurrentFlowTitle();
+            if (runtime.HasActiveInteractionFlow && runtime.ActiveInteraction != null) return "I:" + runtime.ActiveInteraction.Id;
+            if (runtime.HasActiveEventFlow) return "E:" + runtime.CurrentFlowTitle();
             return "S:" + runtime.CurrentFlowTitle();
         }
 
-        private void AppendCurrentNode(IReadOnlyList<SandPlanetFlowNode04> rows)
+        private bool AppendCurrentNode(IReadOnlyList<SandPlanetFlowNode04> rows, out string appendedText)
         {
-            if (rows == null || rows.Count == 0) return;
+            appendedText = string.Empty;
+            if (rows == null || rows.Count == 0) return false;
             SandPlanetFlowNode04 first = rows[0];
             string body = FormatNodeBody(first);
             string signature = first.NodeId + "|" + first.Speaker + "|" + body;
-            if (signature == lastNodeSignature) return;
+            if (signature == lastNodeSignature) return false;
             lastNodeSignature = signature;
-            if (!string.IsNullOrWhiteSpace(body)) transcript.Add(body);
+            if (!string.IsNullOrWhiteSpace(body))
+            {
+                transcript.Add(body);
+                appendedText = body;
+            }
+            return true;
         }
 
         private string FormatNodeBody(SandPlanetFlowNode04 row)
         {
-            string body = row?.BodyText ?? string.Empty;
-            if (row == null) return body;
+            if (row == null) return string.Empty;
+            string body = (row.BodyText ?? string.Empty).Trim();
+            if (!string.Equals(row.PresentationType, "DIALOGUE", StringComparison.OrdinalIgnoreCase)) return body;
+
             string speaker = SpeakerName(row.Speaker);
-            if (string.Equals(row.PresentationType, "DIALOGUE", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(speaker))
-                return "<b>" + speaker + "</b> - " + body;
-            return body;
+            if (string.IsNullOrEmpty(speaker)) return body;
+            string already = speaker + " -";
+            if (body.StartsWith(already, StringComparison.Ordinal)) return body;
+            return speaker + " - \"" + TrimOuterQuotes(body) + "\"";
         }
 
         private void ExecuteChoice(SandPlanetFlowNode04 row)
         {
+            if (typing)
+            {
+                CompleteTypewriter();
+                return;
+            }
+
             AppendChosenText(row);
-            modalBody.text = string.Join("\n\n", transcript);
+            if (modalBody != null) modalBody.text = string.Join("\n\n", transcript);
             ScrollToBottom();
             runtime.ExecuteNode(row);
         }
 
         private void AppendChosenText(SandPlanetFlowNode04 row)
         {
-            string choice = row?.ChoiceText ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(choice)) return;
-            if (string.Equals(choice, "계속", StringComparison.OrdinalIgnoreCase) || string.Equals(choice, "종료", StringComparison.OrdinalIgnoreCase)) return;
+            string choice = (row?.ChoiceText ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(choice) || IsUtilityChoice(choice)) return;
 
-            bool dialogue = string.Equals(row.PresentationType, "DIALOGUE", StringComparison.OrdinalIgnoreCase);
-            string prefix = dialogue ? "<color=#CFE3F3><b>제이</b> - " : "<color=#CFE3F3>▶ ";
-            transcript.Add(prefix + choice + "</color>");
+            if (LooksLikeActionChoice(choice)) transcript.Add("제이는 " + NormalizeActionSentence(choice));
+            else transcript.Add("제이 - \"" + TrimOuterQuotes(choice) + "\"");
+        }
+
+        private static bool IsUtilityChoice(string choice)
+        {
+            return string.Equals(choice, "계속", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(choice, "종료", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(choice, "닫기", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(choice, "취소", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool LooksLikeActionChoice(string choice)
+        {
+            string t = TrimOuterQuotes(choice).Trim();
+            string[] endings = { "한다.", "한다", "는다.", "는다", "간다.", "간다", "본다.", "본다", "걷는다.", "걷는다", "돕는다.", "돕는다", "살핀다.", "살핀다", "기다린다.", "기다린다", "돌아간다.", "돌아간다", "둔다.", "둔다" };
+            return endings.Any(e => t.EndsWith(e, StringComparison.Ordinal));
+        }
+
+        private static string NormalizeActionSentence(string choice)
+        {
+            string t = TrimOuterQuotes(choice).Trim();
+            if (string.IsNullOrEmpty(t)) return string.Empty;
+            return t.EndsWith(".", StringComparison.Ordinal) ? t : t + ".";
+        }
+
+        private static string TrimOuterQuotes(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+            string t = text.Trim();
+            if (t.Length >= 2 && ((t[0] == '"' && t[t.Length - 1] == '"') || (t[0] == '“' && t[t.Length - 1] == '”') || (t[0] == '\'' && t[t.Length - 1] == '\'')))
+                return t.Substring(1, t.Length - 2).Trim();
+            return t;
+        }
+
+        private void StartTypewriter(string prefix, string segment)
+        {
+            StopTypewriter();
+            typewriterPrefix = prefix ?? string.Empty;
+            typewriterSegment = segment ?? string.Empty;
+            typewriterTarget = typewriterPrefix + typewriterSegment;
+            if (modalBody == null) return;
+
+            modalRoot.gameObject.SetActive(false);
+            modalBody.text = typewriterPrefix;
+            if (string.IsNullOrEmpty(typewriterSegment))
+            {
+                RevealChoices();
+                return;
+            }
+
+            typing = true;
+            typewriterOverlay.SetActive(true);
+            typewriterRoutine = StartCoroutine(TypewriterRoutine());
+        }
+
+        private IEnumerator TypewriterRoutine()
+        {
+            for (int i = 1; i <= typewriterSegment.Length; i++)
+            {
+                modalBody.text = typewriterPrefix + typewriterSegment.Substring(0, i);
+                if (i % 3 == 0) ScrollToBottom();
+                char c = typewriterSegment[i - 1];
+                float delay = c == '.' || c == '?' || c == '!' || c == '\n'
+                    ? StopDelay : (c == ',' || c == '…' ? CommaDelay : TypeDelay);
+                yield return new WaitForSecondsRealtime(delay);
+            }
+            typewriterRoutine = null;
+            typing = false;
+            RevealChoices();
+        }
+
+        private void CompleteTypewriter()
+        {
+            if (!typing) return;
+            if (typewriterRoutine != null) StopCoroutine(typewriterRoutine);
+            typewriterRoutine = null;
+            typing = false;
+            if (modalBody != null) modalBody.text = typewriterTarget;
+            RevealChoices();
+        }
+
+        private void RevealChoices()
+        {
+            if (typewriterOverlay != null) typewriterOverlay.SetActive(false);
+            if (modalRoot != null) modalRoot.gameObject.SetActive(true);
+            Canvas.ForceUpdateCanvases();
+            ScrollToBottom();
+        }
+
+        private void StopTypewriter()
+        {
+            if (typewriterRoutine != null) StopCoroutine(typewriterRoutine);
+            typewriterRoutine = null;
+            typing = false;
+            if (typewriterOverlay != null) typewriterOverlay.SetActive(false);
         }
 
         private string ChoiceLabel(SandPlanetFlowNode04 row, bool canExecute, string reason)
@@ -401,10 +539,8 @@ namespace SandPlanet.Prototype
                 ? (string.IsNullOrEmpty(row.NextNodeId) ? "종료" : "계속")
                 : row.ChoiceText;
             string requirement = RequirementLabel(row);
-            if (!string.IsNullOrEmpty(requirement))
-                label += "\n<size=13><color=#AFC4D6>" + requirement + "</color></size>";
-            if (!canExecute)
-                label += "\n<size=12><color=#E7A0A0>잠김 · " + reason + "</color></size>";
+            if (!string.IsNullOrEmpty(requirement)) label += "\n<size=13><color=#AFC4D6>" + requirement + "</color></size>";
+            if (!canExecute) label += "\n<size=12><color=#E7A0A0>잠김 · " + reason + "</color></size>";
             return label;
         }
 
@@ -419,9 +555,7 @@ namespace SandPlanet.Prototype
             {
                 int current = StatLevel(row.SoftStat);
                 string stat = StatLabel(row.SoftStat);
-                parts.Add(extraWill > 0
-                    ? stat + " " + current + "/" + row.SoftRequirement + " + 의지 " + extraWill + " 보완"
-                    : stat + " ≥ " + row.SoftRequirement);
+                parts.Add(extraWill > 0 ? stat + " " + current + "/" + row.SoftRequirement + " + 의지 " + extraWill + " 보완" : stat + " ≥ " + row.SoftRequirement);
             }
 
             int explicitWillCost = Math.Max(0, -row.WillDelta);
@@ -436,18 +570,10 @@ namespace SandPlanet.Prototype
             string op = OperatorLabel(condition.Operator);
             switch ((condition.Type ?? string.Empty).ToUpperInvariant())
             {
-                case "AFFINITY":
-                    output.Add(runtime.TargetName("CHARACTER", condition.Key) + " 호감도 " + op + " " + condition.Value + " (현재 " + runtime.AffinityValue(condition.Key) + ")");
-                    break;
-                case "STAT_LEVEL":
-                    output.Add(StatLabel(condition.Key) + " " + op + " " + condition.Value + " (현재 " + StatLevel(condition.Key) + ")");
-                    break;
-                case "DAY":
-                    output.Add("Day " + op + " " + condition.Value);
-                    break;
-                case "TIME":
-                    output.Add("시간 " + op + " " + condition.Value + ":00");
-                    break;
+                case "AFFINITY": output.Add(runtime.TargetName("CHARACTER", condition.Key) + " 호감도 " + op + " " + condition.Value + " (현재 " + runtime.AffinityValue(condition.Key) + ")"); break;
+                case "STAT_LEVEL": output.Add(StatLabel(condition.Key) + " " + op + " " + condition.Value + " (현재 " + StatLevel(condition.Key) + ")"); break;
+                case "DAY": output.Add("Day " + op + " " + condition.Value); break;
+                case "TIME": output.Add("시간 " + op + " " + condition.Value + ":00"); break;
             }
         }
 
@@ -455,23 +581,20 @@ namespace SandPlanet.Prototype
         {
             List<string> parts = new List<string>();
             if (row.TimeCost != 0) parts.Add("시간 " + Signed(-row.TimeCost) + "h");
-
             int extraWill = ExtraWillCost(row);
             int willDelta = row.WillDelta - extraWill;
             if (willDelta != 0) parts.Add("의지 " + Signed(willDelta));
             if (row.PersonalXpDelta != 0) parts.Add("강인함 경험치 " + Signed(row.PersonalXpDelta));
             if (row.SocialXpDelta != 0) parts.Add("교감 경험치 " + Signed(row.SocialXpDelta));
             if (row.TechnicalXpDelta != 0) parts.Add("기술 경험치 " + Signed(row.TechnicalXpDelta));
-
             foreach (SandPlanetAffinityChange04 affinity in row.AffinityChanges)
             {
                 if (affinity == null || affinity.Delta == 0) continue;
                 parts.Add(runtime.TargetName("CHARACTER", affinity.CharacterId) + " 호감도 " + Signed(affinity.Delta));
             }
 
-            string text = parts.Count == 0
-                ? "<b>예상 결과</b>  수치 변화 없음"
-                : "<b>예상 결과</b>  " + string.Join("   ·   ", parts);
+            if (parts.Count == 0) return string.Empty;
+            string text = string.Join("  ·  ", parts);
             if (!canExecute) text += "\n<color=#E7A0A0>현재 선택 불가 · " + reason + "</color>";
             return text;
         }
@@ -534,18 +657,15 @@ namespace SandPlanet.Prototype
             narrativeScroll.verticalNormalizedPosition = 0f;
         }
 
-        private void SetHover(string text)
-        {
-            if (hoverText != null) hoverText.text = string.IsNullOrEmpty(text) ? HoverHint : text;
-        }
-
         private void ResetNarrativeState()
         {
             activeFlowKey = string.Empty;
             lastNodeSignature = string.Empty;
             narrativeSignature = string.Empty;
             transcript.Clear();
-            SetHover(HoverHint);
+            typewriterPrefix = string.Empty;
+            typewriterSegment = string.Empty;
+            typewriterTarget = string.Empty;
         }
 
         private QuestBadge QuestActionFor(SandPlanetFlowNode04 node)
@@ -605,11 +725,34 @@ namespace SandPlanet.Prototype
 
         private void CreateModalButton(string label, bool interactable, UnityEngine.Events.UnityAction click, QuestBadge badge, string preview)
         {
-            Button button = Instantiate(modalTemplate, modalRoot);
+            float height = badge == null ? (label.Contains("\n") ? 82f : 68f) : 100f;
+            GameObject row = new GameObject("ChoiceRow", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+            row.transform.SetParent(modalRoot, false);
+            LayoutElement rowLayout = row.GetComponent<LayoutElement>();
+            rowLayout.minHeight = height;
+            rowLayout.preferredHeight = height;
+            HorizontalLayoutGroup horizontal = row.GetComponent<HorizontalLayoutGroup>();
+            horizontal.spacing = string.IsNullOrEmpty(preview) ? 0f : 9f;
+            horizontal.padding = new RectOffset(0, 0, 0, 0);
+            horizontal.childAlignment = TextAnchor.MiddleCenter;
+            horizontal.childControlWidth = true;
+            horizontal.childForceExpandWidth = false;
+            horizontal.childControlHeight = true;
+            horizontal.childForceExpandHeight = true;
+
+            GameObject previewPanel = string.IsNullOrEmpty(preview) ? null : CreateChoicePreview(row.transform, preview);
+
+            Button button = Instantiate(modalTemplate, row.transform);
             button.gameObject.SetActive(true);
             button.interactable = interactable;
             button.onClick.RemoveAllListeners();
             if (click != null) button.onClick.AddListener(click);
+            LayoutElement buttonLayout = button.GetComponent<LayoutElement>();
+            if (buttonLayout == null) buttonLayout = button.gameObject.AddComponent<LayoutElement>();
+            buttonLayout.flexibleWidth = 1f;
+            buttonLayout.minWidth = 0f;
+            buttonLayout.minHeight = height;
+            buttonLayout.preferredHeight = height;
 
             Text text = button.GetComponentInChildren<Text>(true);
             if (text != null)
@@ -623,23 +766,54 @@ namespace SandPlanet.Prototype
                 SetRect(text.rectTransform, badge == null ? new Vector2(.035f,.08f) : new Vector2(.035f,.05f), badge == null ? new Vector2(.965f,.92f) : new Vector2(.965f,.62f));
             }
 
-            ApplyHeight(button, badge == null ? (label.Contains("\n") ? 76f : 64f) : 94f);
             if (badge != null) CreateQuestChip(button, text, badge);
-            AttachHover(button, preview);
+            if (previewPanel != null) AttachHover(button, previewPanel);
         }
 
-        private void AttachHover(Button button, string preview)
+        private GameObject CreateChoicePreview(Transform parent, string preview)
         {
+            GameObject panel = new GameObject("ChoicePreview", typeof(RectTransform), typeof(Image), typeof(CanvasGroup), typeof(LayoutElement));
+            panel.transform.SetParent(parent, false);
+            LayoutElement layout = panel.GetComponent<LayoutElement>();
+            layout.minWidth = 142f;
+            layout.preferredWidth = 142f;
+            layout.flexibleWidth = 0f;
+            Image image = panel.GetComponent<Image>();
+            image.color = new Color(.075f, .095f, .12f, .98f);
+            image.raycastTarget = false;
+            CanvasGroup group = panel.GetComponent<CanvasGroup>();
+            group.alpha = 0f;
+            group.interactable = false;
+            group.blocksRaycasts = false;
+
+            GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(Text));
+            textObject.transform.SetParent(panel.transform, false);
+            SetRect(textObject.GetComponent<RectTransform>(), new Vector2(.055f,.08f), new Vector2(.945f,.92f));
+            Text text = textObject.GetComponent<Text>();
+            text.font = modalTitle != null && modalTitle.font != null ? modalTitle.font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 13;
+            text.color = new Color(.82f, .88f, .93f, 1f);
+            text.alignment = TextAnchor.MiddleLeft;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.supportRichText = true;
+            text.raycastTarget = false;
+            text.text = preview;
+            return panel;
+        }
+
+        private void AttachHover(Button button, GameObject previewPanel)
+        {
+            CanvasGroup group = previewPanel.GetComponent<CanvasGroup>();
             EventTrigger trigger = button.GetComponent<EventTrigger>();
             if (trigger == null) trigger = button.gameObject.AddComponent<EventTrigger>();
             trigger.triggers = new List<EventTrigger.Entry>();
 
             EventTrigger.Entry enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-            enter.callback.AddListener(_ => SetHover(preview));
+            enter.callback.AddListener(_ => { if (group != null) group.alpha = 1f; });
             trigger.triggers.Add(enter);
-
             EventTrigger.Entry exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
-            exit.callback.AddListener(_ => SetHover(HoverHint));
+            exit.callback.AddListener(_ => { if (group != null) group.alpha = 0f; });
             trigger.triggers.Add(exit);
         }
 
@@ -726,12 +900,20 @@ namespace SandPlanet.Prototype
             return sprite;
         }
 
-        private static void ConfigureVerticalRoot(Transform root, float spacing, TextAnchor alignment)
+        private static void ConfigureVerticalRoot(Transform root, float spacing, TextAnchor alignment, bool preferredHeight)
         {
             ContentSizeFitter fitter = root.GetComponent<ContentSizeFitter>();
-            if (fitter != null) fitter.enabled = false;
+            if (preferredHeight)
+            {
+                if (fitter == null) fitter = root.gameObject.AddComponent<ContentSizeFitter>();
+                fitter.enabled = true;
+                fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+                fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            }
+            else if (fitter != null) fitter.enabled = false;
+
             VerticalLayoutGroup layout = root.GetComponent<VerticalLayoutGroup>();
-            if (layout == null) return;
+            if (layout == null) layout = root.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.enabled = true;
             layout.spacing = spacing;
             layout.childAlignment = alignment;
