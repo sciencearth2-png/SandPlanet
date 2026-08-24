@@ -29,7 +29,7 @@ namespace SandPlanet.Prototype
 
             Prototype04NavigationController navigation = gameObject.AddComponent<Prototype04NavigationController>();
             Prototype04LocationPresenter location = gameObject.AddComponent<Prototype04LocationPresenter>();
-            Prototype04NarrativePresenter narrative = gameObject.AddComponent<Prototype04NarrativePresenter>();
+            Prototype04NarrativeLogPresenter narrative = gameObject.AddComponent<Prototype04NarrativeLogPresenter>();
             Prototype04HudPresenter hud = gameObject.AddComponent<Prototype04HudPresenter>();
             SandPlanetPrototype04W1QuestTracker quests = gameObject.AddComponent<SandPlanetPrototype04W1QuestTracker>();
             SandPlanetPrototype04PeoplePanel people = gameObject.AddComponent<SandPlanetPrototype04PeoplePanel>();
