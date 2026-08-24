@@ -1,8 +1,8 @@
 ﻿WorldTargetID,Name,LocationID,TargetCategory,SceneObjectKey,Clickable,Active,WriterNote
 OBJ_03_GRAVE_MEMORIAL,추모비,LOC_03_GRAVEYARD,LANDMARK,grave_memorial,TRUE,TRUE,묘지 대표 상호작용 대상.
-OBJ_04_OASIS_PUMP,급수 펌프,LOC_04_OASIS,DEVICE,oasis_pump,TRUE,TRUE,오아시스 수원/보존/조사 관련.
-OBJ_04_OASIS_WATER,오아시스 수원,LOC_04_OASIS,AREA,oasis_water,TRUE,TRUE,수질 조사와 장기 정착 가능성 판단.
-OBJ_02_SHIP_CONSOLE,정비 콘솔,LOC_02_SHIP,DEVICE,ship_console,TRUE,TRUE,Week 1~2 기술 파밍/수송선 준비.
+OBJ_04_OASIS_PUMP,오아시스,LOC_04_OASIS,DEVICE,oasis_pump,TRUE,TRUE,정착민들이 '오아시스'라고 부르는 급수 펌프. 호수/연못이 아니다. 지하수를 퍼 올려 배관으로 거주지에 보내는 핵심 생활용수 설비.
+OBJ_04_OASIS_WATER,오아시스 취수정·계측부,LOC_04_OASIS,AREA,oasis_water,TRUE,TRUE,오아시스 펌프 아래 지하수의 취수 깊이·유입량·수질·주변 지반을 확인하는 점검 구역. 지표에 노출된 물가나 수면은 없다.
+OBJ_02_SHIP_CONSOLE,정비 콘솔,LOC_02_SHIP,DEVICE,ship_console,TRUE,TRUE,"Week1 D3~D7 Standard Repair의 진입 콘솔. 하루 1회 시설을 골라 복구하며, Research Restoration도 같은 일일 수리 슬롯을 소비한다."
 OBJ_01_SETTLEMENT_BOARD,거주지 게시판,LOC_01_SETTLEMENT,BOARD,settlement_board,TRUE,TRUE,공동체 정보/일손 행동.
 OBJ_01_SETTLEMENT_REST,휴식 공간,LOC_01_SETTLEMENT,AREA,settlement_rest,TRUE,TRUE,Week 1~2 휴식 행동. 3h → Will +1.
 OBJ_01_SETTLEMENT_SHELTER,거주지 방풍 설비,LOC_01_SETTLEMENT,FACILITY,settlement_shelter,TRUE,TRUE,Week 2 거주지 보존 반복 행동.
