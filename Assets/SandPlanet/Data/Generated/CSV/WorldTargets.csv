@@ -1,0 +1,21 @@
+﻿WorldTargetID,Name,LocationID,TargetCategory,SceneObjectKey,Clickable,Active,WriterNote
+OBJ_03_GRAVE_MEMORIAL,추모비,LOC_03_GRAVEYARD,LANDMARK,grave_memorial,TRUE,TRUE,묘지 대표 상호작용 대상.
+OBJ_04_OASIS_PUMP,오아시스,LOC_04_OASIS,DEVICE,oasis_pump,TRUE,TRUE,정착민들이 '오아시스'라고 부르는 급수 펌프. 호수/연못이 아니다. 지하수를 퍼 올려 배관으로 거주지에 보내는 핵심 생활용수 설비.
+OBJ_04_OASIS_WATER,오아시스 취수정·계측부,LOC_04_OASIS,AREA,oasis_water,TRUE,TRUE,오아시스 펌프 아래 지하수의 취수 깊이·유입량·수질·주변 지반을 확인하는 점검 구역. 지표에 노출된 물가나 수면은 없다.
+OBJ_02_SHIP_CONSOLE,정비 콘솔,LOC_02_SHIP,DEVICE,ship_console,TRUE,TRUE,"Week1 D3~D7 Standard Repair의 진입 콘솔. 하루 1회 시설을 골라 복구하며, Research Restoration도 같은 일일 수리 슬롯을 소비한다."
+OBJ_01_SETTLEMENT_BOARD,거주지 게시판,LOC_01_SETTLEMENT,BOARD,settlement_board,TRUE,TRUE,공동체 정보/일손 행동.
+OBJ_01_SETTLEMENT_REST,휴식 공간,LOC_01_SETTLEMENT,AREA,settlement_rest,TRUE,TRUE,Week 1~2 휴식 행동. 3h → Will +1.
+OBJ_01_SETTLEMENT_SHELTER,거주지 방풍 설비,LOC_01_SETTLEMENT,FACILITY,settlement_shelter,TRUE,TRUE,Week 2 거주지 보존 반복 행동.
+OBJ_03_GRAVE_BARRIER,묘지 방풍막,LOC_03_GRAVEYARD,FACILITY,grave_barrier,TRUE,TRUE,Week 2 묘지 보존 반복 행동.
+OBJ_02_SHIP_OUTER_PANEL,수송선 외부 패널,LOC_02_SHIP,FACILITY,ship_outer_panel,TRUE,TRUE,Week 2 수송선 외부 보존/회수 딜레마.
+OBJ_05_COMMAND_TABLE,항해 관제대,LOC_05_COMMAND,DEVICE,w3_command_table,TRUE,TRUE,Week 3 항해·통신·노선 논의.
+OBJ_06_SUPPLY_STORAGE,주 보급 창고,LOC_06_SUPPLY,FACILITY,w3_supply_storage,TRUE,TRUE,식량/물자 배분·정리.
+OBJ_06_FREEZER,냉동 보관고,LOC_06_SUPPLY,FACILITY,w3_freezer,TRUE,TRUE,장기 보관 식량/의약품.
+OBJ_06_GREENHOUSE,온실 모듈,LOC_06_SUPPLY,FACILITY,w3_greenhouse,TRUE,TRUE,정착 가능성을 상징하는 생장 설비.
+OBJ_07_CORE,주 시스템 코어,LOC_07_TECH,FACILITY,w3_core,TRUE,TRUE,Week 3 생존의 기술 중심.
+OBJ_07_ANALYSIS,폭풍 분석 단말,LOC_07_TECH,DEVICE,w3_analysis_terminal,TRUE,TRUE,제이+보리치 폭풍 조사 메인.
+OBJ_07_MAINTENANCE,정비 작업대,LOC_07_TECH,DEVICE,w3_maintenance,TRUE,TRUE,기관/연구 구역 반복 정비.
+OBJ_08_BUNK,침상,LOC_08_HABIT,AREA,w3_bunk,TRUE,TRUE,Week 3 휴식 행동. 3h → Will +1.
+OBJ_08_COMMON_TABLE,공용 테이블,LOC_08_HABIT,AREA,w3_common_table,TRUE,TRUE,사람과 대화/생활 문제.
+OBJ_08_MEDICAL,의료 코너,LOC_08_HABIT,FACILITY,w3_medical,TRUE,TRUE,거주 안정/부상 대응.
+OBJ_05_AIRLOCK,외부 출입구,LOC_05_COMMAND,DEVICE,w3_airlock,TRUE,TRUE,Day 21 외부 확인 Main의 마지막 대상.

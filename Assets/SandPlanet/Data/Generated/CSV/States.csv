@@ -1,0 +1,88 @@
+﻿StateID,DataType,DefaultValue,Scope,Description,WriterNote
+STA_W1_GRAVEYARD_VISITED,BOOL,FALSE,WORLD,묘지를 처음 확인함,기존 샘플 유지.
+STA_W1_MEMORIAL_COMPLETED,BOOL,FALSE,WORLD,추모 완료,묘지 텍스트/NPC 일정 변형.
+STA_W1_OASIS_RISK_KNOWN,BOOL,FALSE,INFO,현재 지하 수원/취수 방식의 장기 위험을 확인함,W1 급수시설·수원 조사 결과가 설정.
+STA_W1_SHIP_REPAIR_PRIORITY_KNOWN,BOOL,FALSE,INFO,수송선 수리 우선순위 정보 확보,페이 Week1 Character Quest 결과.
+STA_W1_PUBLIC_REACTION_PREPARED,BOOL,FALSE,WORLD,공개 후 주민 반응 대비,향후 공개 루트 갈등 완화용.
+STA_W1_SETTLEMENT_PERSPECTIVE_KNOWN,BOOL,FALSE,INFO,정착 관점 정보 확보,디야 Week1 Side Quest 결과.
+STA_W1_DISCLOSURE_PUBLIC,BOOL,FALSE,ROUTE,모두에게 공개,Day 7 전면 공개 결과.
+STA_W1_DISCLOSURE_LIMITED,BOOL,FALSE,ROUTE,일부 핵심 인물에게만 공개,Day 7 제한 공개 결과.
+STA_W2_PRESERVATION_OPEN,BOOL,FALSE,SYSTEM,Week2 외부 보존 퀘스트 개방,수송선을 피난처로 확정하면 TRUE.
+STA_W2_EVAC_PROGRESS,INT,0,SYSTEM,수송선 피난 준비도,반복 준비 행동으로 증가. 4 이상이면 준비 완료 Event.
+STA_PRESERVE_SETTLEMENT,INT,0,WORLD,거주지 보존도 누적값,Character/Side/반복 행동으로 증가. Day21 시각적 상태에 사용.
+STA_PRESERVE_OASIS,INT,0,WORLD,오아시스 펌프·취수정 보존도 누적값,호수 보존이 아니라 급수 펌프·취수정·배관과 지하수 접근 설비 보존. 정착 물리 가능성 판단에 사용.
+STA_PRESERVE_GRAVEYARD,INT,0,WORLD,묘지 보존도 누적값,정서적/기억의 보존. 정착 물리 자원과는 별개.
+STA_PRESERVE_SHIP,INT,0,WORLD,Week1~2 수송선 외부 구조·설비 보존도,Day21 외부 수송선 상태와 정착/복구 가능성.
+STA_W2_SEEDS_PRESERVED,BOOL,FALSE,WORLD,씨앗·재배 장비를 보존함,정착 하드 엔딩 보조 조건.
+STA_W2_PERSONAL_ITEMS_FLEXIBLE,BOOL,FALSE,WORLD,일부 개인 물품 반입을 허용함,사회적 반응/거주 만족도 변형용.
+STA_W3_PRE_STORM_DATA,BOOL,FALSE,INFO,폭풍 전 마지막 외부 관측 자료 확보,Week3 폭풍 분석 빠른 선택지 조건.
+STA_W3_NAV_STABILITY,INT,1,SYSTEM,Week3 지휘·항해 구역 안정도,Daily 관리와 사건 선택으로 증감.
+STA_W3_SUPPLY_STABILITY,INT,1,SYSTEM,Week3 보급·생명유지 안정도,식량·물·부품·온실 관리.
+STA_W3_TECH_STABILITY,INT,1,SYSTEM,Week3 기관·연구 안정도,코어·전력·정비·분석 시스템.
+STA_W3_HABIT_STABILITY,INT,1,SYSTEM,Week3 거주 구역 안정도,생활·의료·갈등·회복.
+STA_W3_POWER_PRIORITY,ENUM,UNDECIDED,SYSTEM,Week3 첫날 전력 우선순위 선택,NAV / TECH / HABIT 값 사용.
+STA_W3_OBSERVATION_PROGRESS,INT,0,SYSTEM,폭풍 분석 관측 진행도,3 이상이면 폭풍 패턴 발견 Event.
+STA_W3_FUTURE_TALKS_OPEN,BOOL,FALSE,SYSTEM,폭풍 종료 예측 발표 후 미래 대화 개방,6개 Character Quest 활성화 기준.
+STA_W3_FUTURE_TALKS_DONE,INT,0,SYSTEM,미래 입장 대화를 끝낸 인물 수,6 이상이면 Main Future 완료 Event.
+STA_STANCE_SAM,ENUM,UNDECIDED,ROUTE,샘의 폭풍 이후 입장,TEMP 초기값. LEAVE/STAY/UNDECIDED.
+STA_STANCE_JINA,ENUM,LEAVE,ROUTE,지나의 폭풍 이후 입장,TEMP 초기값. 자원/생활 기준을 중시. W3에서는 제이가 더 이상 답을 묻는 후배가 아니라 조건을 함께 계산하는 동료가 되는 관계 변화를 반영.
+STA_STANCE_FAYE,ENUM,UNDECIDED,ROUTE,페이의 폭풍 이후 입장,시작은 갈등 중. 생존 정비와 출항 수리를 구분하며 Character Arc/세계 상태에 따라 변화.
+STA_STANCE_BENJAMIN,ENUM,STAY,ROUTE,벤자민의 폭풍 이후 입장,"약혼자의 무덤과 기억 때문에 STAY 성향이 강하지만, 장소를 떠나는 것과 약혼자를 잊는 것은 다르다는 결론에 도달할 수 있음."
+STA_STANCE_BORICHI,ENUM,LEAVE,ROUTE,보리치의 폭풍 이후 입장,안전/추가 사망 회피 성향 반영.
+STA_STANCE_DIYA,ENUM,STAY,ROUTE,디야의 폭풍 이후 입장,공동체/정착 관점 기반 TEMP. 핵심 기준은 장소 자체가 아니라 '기성세대의 실패를 아이들에게 반복하지 않는 것'. STAY/LEAVE 모두 이 가치에서 성립.
+STA_W1_REUNION_COUNT,INT,0,SYSTEM,Day1~2 핵심 동료 재회 수,벤자민 GAME_START + 샘/지나/페이/보리치/디야 Main Interaction으로 증가. 6이면 도입 Main 완료.
+STA_W1_MET_BENJAMIN,BOOL,FALSE,INFO,벤자민과 재회함,GAME_START에서 TRUE. Day1~2 도입 Main 이름 체크리스트용.
+STA_W1_MET_SAM,BOOL,FALSE,INFO,샘과 재회함,Day1~2 도입 Main 이름 체크리스트용.
+STA_W1_MET_JINA,BOOL,FALSE,INFO,지나와 재회함,Day1~2 도입 Main 이름 체크리스트용.
+STA_W1_MET_FAYE,BOOL,FALSE,INFO,페이와 재회함,Day1~2 도입 Main 이름 체크리스트용.
+STA_W1_MET_BORICHI,BOOL,FALSE,INFO,보리치와 재회함,Day1~2 도입 Main 이름 체크리스트용.
+STA_W1_MET_DIYA,BOOL,FALSE,INFO,디야와 재회함,Day1~2 도입 Main 이름 체크리스트용.
+STA_W1_BEN_FAMILY_KNOWN,BOOL,FALSE,INFO,벤자민의 약혼자가 불시착 당시 사망했음을 알게 됨,Legacy ID(FAMILY_KNOWN)는 호환성을 위해 유지. 현재 Canon에서는 배우자/자녀가 아니라 약혼자 한 사람을 뜻함.
+STA_W1_DISCLOSURE_DEBATE_OPEN,BOOL,FALSE,SYSTEM,오아시스 펌프·지하수 조사 보고 후 Day7 공개 결정을 준비하는 구간 개방,샘의 전망 대화와 공개/제한 대비 행동의 노출 조건.
+STA_W1_LIMITED_WORK_PREPARED,BOOL,FALSE,WORLD,제한 공개 시 핵심 실무진의 역할 분담을 미리 정리함,Day7 제한 공개 시간 부담 및 Week2 후속 반응 완화 훅.
+STA_W1_OASIS_LIVED_CHANGE_KNOWN,BOOL,FALSE,INFO,주민이 체감한 급수·생활 변화까지 확인함,오아시스 펌프·지하수 조사 Social 경로의 추가 정보. 별도 Clue 시스템이 아닌 일반 정보 State.
+STA_W1_SHIP_OVERVIEW_SEEN,BOOL,FALSE,INFO,수송선의 기본 상태를 직접 확인함,D1 Narrative v1.8 수송선 첫 점검.
+STA_W1_SHIP_DETAIL_SEEN,BOOL,FALSE,INFO,수송선 손상 기록까지 확인함,D1 Narrative v1.8 기술 선택 결과.
+STA_W1_JINA_TIME_GAP_SEEN,BOOL,FALSE,INFO,D2 지나와 10년 시간차 및 항해 당시의 업무 신뢰를 체감한 Seed 완료,D4 지나 Character OFFER 조건. 지나와 제이는 절친이 아니라 짧은 항해 중 제이가 의지한 연상의 실무자 관계.
+STA_W1_DIYA_HOME_SEEN,BOOL,FALSE,INFO,D2 디야와 거주지 생활공간을 둘러봄,D5 디야 Character OFFER 조건.
+STA_W1_FAYE_WORK_SEEN,BOOL,FALSE,INFO,D2 페이의 일상 장비 정리를 함께함,D4 페이 Character OFFER 조건.
+STA_W1_BORICHI_RECORD_SEEN,BOOL,FALSE,INFO,D2 보리치의 반복 관측기록 정리를 함께함,D3 보리치 Character OFFER 조건.
+STA_W1_NIGHT_SHIFT_MET,BOOL,FALSE,INFO,D2 야간조 인계와 기본 규칙을 확인함,W2 샘 야간 사건 선행 세계관 노출.
+STA_W1_OASIS_OBSERVED,BOOL,FALSE,INFO,D3~4 오아시스 펌프·지하수 변화 관찰 완료,Investigation Step1
+STA_W1_OASIS_HYPOTHESIS,BOOL,FALSE,INFO,D4~5 펌프/지하수 변화 원인 가설 완료,Investigation Step2
+STA_W1_OASIS_VERIFIED,BOOL,FALSE,INFO,D5~6 현재 지하수/오아시스 펌프 취수 방식 장기 위험 검증 완료,Investigation Step3
+STA_W1_REPORT_DEPART_PREP,BOOL,FALSE,INFO,D6 보고에서 출항 준비 병행 쪽 강조,미래 Flag 자체는 UI 비공개
+STA_W1_RECHECK_CAVEAT,BOOL,FALSE,INFO,D6 보고에 '현재 조건에서는' caveat를 명시,D18 재점검 문체 Seed
+STA_W1_DISCLOSURE_DONE,BOOL,FALSE,INFO,D7 공개 결정 완료,Focus B 해금
+STA_W1_SAM_EP1_DONE,BOOL,FALSE,INFO,D3~5 샘 책임 Episode1,Sam Full Route 1/2
+STA_W1_SAM_EP2_DONE,BOOL,FALSE,INFO,D6~7 샘 책임 Episode2,Sam Full Route 2/2
+STA_W1_JINA_PAST_SEED,BOOL,FALSE,INFO,D4 지나와 항해 당시 제이의 업무 관계 장면,Jina W1 Route Seed. 오랜 우정이 아니라 약 3개월 항해 중 형성된 실무적 신뢰/큰언니 같은 관계.
+STA_W1_FAYE_MUSIC_DREAM,BOOL,FALSE,INFO,D4 페이 음악/기타 꿈,Faye 핵심 W1 Seed
+STA_W1_DIYA_KNIT_SEED,BOOL,FALSE,INFO,D5 디야 뜨개질/망가진 지구/아이들/집,Diya W1 Seed. 기성세대에 대한 냉소와 다음 세대에 대한 애정을 함께 드러냄.
+STA_W1_BORICHI_COMPARE_DONE,BOOL,FALSE,INFO,D3~5 보리치 자료 대조,Borichi W1 Seed
+STA_W1_BORICHI_NIGHTMARE_SEED,BOOL,FALSE,INFO,D5 보리치 야간 과잉 확인,Borichi Full Route Seed
+STA_W1_BEN_GRAVE_DEEP,BOOL,FALSE,INFO,D5 벤자민 묘지 후속,Benjamin Full Route Seed
+STA_W1_FOCUS_A_USED,BOOL,FALSE,INFO,D6 Focus A 사용,Jina/Faye/Borichi 중 1
+STA_W1_FOCUS_A_JINA,BOOL,FALSE,INFO,D6 Focus A Jina,Mastery Anchor
+STA_W1_FOCUS_A_FAYE,BOOL,FALSE,INFO,D6 Focus A Faye,Mastery Anchor
+STA_W1_FOCUS_A_BORICHI,BOOL,FALSE,INFO,D6 Focus A Borichi,Mastery Anchor
+STA_W1_FOCUS_B_USED,BOOL,FALSE,INFO,D7 Focus B 사용,Benjamin/Diya 중 1
+STA_W1_FOCUS_B_BEN,BOOL,FALSE,INFO,D7 Focus B Benjamin,Mastery Anchor
+STA_W1_FOCUS_B_DIYA,BOOL,FALSE,INFO,D7 Focus B Diya,Mastery Anchor
+STA_W1_RESEARCH_RESTORE_STAGE,INT,0,INFO,W1 연구실 authored 복구/기록 Restoration 진행 단계 0~3,Facility Integrity와 분리된 서사 진행도. 실제 연구실 수치는 STA_SHIP_RESEARCH_INTEGRITY 사용.
+STA_W1_RESEARCH_LOG_BASELINE,BOOL,FALSE,INFO,추락 전 일반 관측기록 복구,Research Restore A1
+STA_W1_RESEARCH_ENV_LOGS,BOOL,FALSE,INFO,토양·수질·대기 환경로그 복구,Research Restore A2
+STA_W1_RESEARCH_LONG_SAMPLE,BOOL,FALSE,INFO,십 년 장기 표본/인덱스 복구,Research Restore A3
+STA_SHIP_HULL_INTEGRITY,INT,5,SYSTEM,수송선 전체 외벽 Integrity (0~20),"ContentDesign v3.1 baseline. W1/W2 일반 보강 1회 = +4, 20 초과 시 시스템 Clamp."
+STA_SHIP_BRIDGE_INTEGRITY,INT,2,SYSTEM,함교 Integrity (0~5),ContentDesign v3.1 baseline. W1 시작 2/5.
+STA_SHIP_ENGINE_INTEGRITY,INT,2,SYSTEM,엔진실 Integrity (0~5),ContentDesign v3.1 baseline. D21 출항 Normal 핵심 >=3.
+STA_SHIP_OXYGEN_INTEGRITY,INT,2,SYSTEM,산소보급실 Integrity (0~5),ContentDesign v3.1 baseline. D14 Shelter 핵심 >=3.
+STA_SHIP_RESEARCH_INTEGRITY,INT,2,SYSTEM,연구실 Integrity (0~5),ContentDesign v3.1 baseline. W1 Research Restoration과 같은 시설값을 사용.
+STA_SHIP_FREEZER_INTEGRITY,INT,5,SYSTEM,냉동창고 Integrity (0~5),ContentDesign v3.1 baseline. W1 시작부터 5/5라 Standard Repair 대상 아님.
+STA_SHIP_GREENHOUSE_INTEGRITY,INT,5,SYSTEM,온실 Integrity (0~5),ContentDesign v3.1 baseline. W1 시작부터 5/5. D13 사건 이후 W3 시작값 3/5 TEMP.
+STA_SHIP_LIVING_INTEGRITY,INT,2,SYSTEM,거주구역 Integrity (0~5),ContentDesign v3.1 baseline. D14 Shelter 핵심 >=3.
+STA_W1_REPAIR_D3_USED,BOOL,FALSE,SYSTEM,Day3 Standard Repair 슬롯 사용 여부,ContentDesign v3.1: D3 하루 1회.
+STA_W1_REPAIR_D4_USED,BOOL,FALSE,SYSTEM,Day4 Standard Repair 슬롯 사용 여부,ContentDesign v3.1: D4 하루 1회.
+STA_W1_REPAIR_D5_USED,BOOL,FALSE,SYSTEM,Day5 Standard Repair 슬롯 사용 여부,ContentDesign v3.1: D5 하루 1회.
+STA_W1_REPAIR_D6_USED,BOOL,FALSE,SYSTEM,Day6 Standard Repair 슬롯 사용 여부,ContentDesign v3.1: D6 하루 1회.
+STA_W1_REPAIR_D7_USED,BOOL,FALSE,SYSTEM,Day7 Standard Repair 슬롯 사용 여부,ContentDesign v3.1: D7 하루 1회.

@@ -1,0 +1,9 @@
+﻿LocationID,Name,SceneKey,Active,WriterNote
+LOC_01_SETTLEMENT,거주지,settlement,TRUE,Week 1~2 허브. 휴식/생활/공동체 행동의 중심.
+LOC_02_SHIP,수송선 외부·정비 구역,ship,TRUE,Week 1~2 허브. 폭풍 전 피난처 준비와 외부 수송선 보존 관련.
+LOC_03_GRAVEYARD,묘지,graveyard,TRUE,Week 1~2 허브. 기억/추모/벤자민 관련.
+LOC_04_OASIS,오아시스,oasis,TRUE,"Week 1~2 허브. '오아시스'는 호수/연못이 아니라 지하수를 퍼 올리는 급수 펌프 자체를 가리키는 명칭. 지표에 열린 수면은 없으며, W1 조사/W2 보존은 펌프·취수정·배관과 지하수 상태를 다룬다."
+LOC_05_COMMAND,지휘·항해 구역,ship_command,TRUE,Week 3 수송선 내부. 함교/항로/통신/공동 의사결정.
+LOC_06_SUPPLY,보급·생명유지 구역,ship_supply,TRUE,Week 3 수송선 내부. 식량·물·부품·냉동고·온실.
+LOC_07_TECH,기관·연구 구역,ship_tech,TRUE,Week 3 수송선 내부. 코어·전력·정비·폭풍 분석.
+LOC_08_HABIT,거주 구역,ship_habitation,TRUE,Week 3 수송선 내부. 침상·의료·공용 공간·사람들의 갈등/회복.

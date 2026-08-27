@@ -1,0 +1,57 @@
+schema: sandplanet-content-design-version-v1
+version: 3.1
+label: Canon + Ship Baseline Sync
+date: 2026-08-25
+branch: prototype-foundation
+workbook_path: Assets/SandPlanet/Data/Design/SandPlanet_ContentDesign.xlsx
+artifact_filename: SandPlanet_ContentDesign_v3.1_CANON.xlsx
+artifact_size_bytes: 438018
+artifact_sha256: ba6d66c1b0346251b3b8a691eaea62d817a2c5fcdbaff0843b1ab8bb1bd32369
+git_blob_sha: 69e299cf195f2a19122525d5def068921e2e2ff0
+binary_status: registered-in-git
+master_w1_repair_status: v3.7-user-unity-verified-remote-sync-must-check
+handoff_doc: docs/CODEX_HANDOFF_2026-08-25.md
+
+verification_order:
+  - ContentDesign
+  - Master
+  - GeneratedCSV
+  - Runtime/Validator
+
+ship_baseline:
+  w1_standard_repair_slots: 5
+  w1_days: D3-D7
+  w2_standard_repair_slots: 7
+  w2_days: D8-D14
+  total_standard_repair_slots: 12
+  facility_repair_integrity_delta: 1
+  hull_repair_integrity_delta: 4
+  preserved_from: SandPlanet_ContentDesign_v2_v3.0_w1_migration
+
+canon:
+  earth_launch_to_crash: approximately 3 months
+  jay_post_crash_gap: approximately 10 years
+  jina: not Jay's friend; reliable older practical worker he relied on during voyage; W3 becomes peer who calculates conditions with Jay
+  diya: cynical 20-something born on ruined Earth; critical of older generation; strongly values younger children having a better life; STAY/LEAVE both derive from not repeating inherited failure
+  benjamin: no spouse or child; one fiancee died in the crash
+  mira: sandstorm erases footprints; missing; Jay searches and finds her; no quicksand/sacrifice fallback
+  oasis: the groundwater pump itself, not a lake or pond; intake well/pipes/measurement infrastructure; internal Oasis proxy retained for compatibility
+
+w1_repair_migration:
+  latest_artifact_label: v3.7_REPAIR_VISIBILITY
+  baseline: D3-D7 one Standard Repair per day
+  research_restoration: D3-D5 shares the same daily Standard Repair slot
+  hotfix: removed unintended STA_W1_SHIP_OVERVIEW_SEEN prerequisite from FLOW_W1_SHIP_REPAIR_D3-D7
+  expected_d3_console_entries:
+    - 수송선 시설을 한 곳 복구한다
+    - 연구실의 죽은 화면을 살펴본다
+  unity_user_check: confirmed
+  remote_master_csv_sync: verify before any further work
+
+notes:
+  - Existing ship Integrity, Repair Profile, FacilityTransition, W3 boss and Ending reverse-design calculations are preserved rather than redesigned.
+  - W1 D3-D7 Standard Repair has been migrated into the latest v3.7 Master working state and the visibility hotfix was confirmed in Unity by the user.
+  - Do not assume the remote binary Master/Generated CSV already matches v3.7; inspect git status/local files before overwriting or committing.
+  - W2 D8-D14 Standard Repair 7-slot migration is still pending before W2 runtime playtest/balance conclusions.
+  - Unity TimeDelta is integer-hours; historical 1.5h design values require conversion when migrating to Master.
+  - Always read docs/CODEX_HANDOFF_2026-08-25.md before continuing implementation.
